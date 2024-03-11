@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+  <div id="sidebar">
+    <ul>My favourite songs<ul>
+      <li><a href="#" onclick="playSong('1-01 Submerged Hell of Sunken Sorrow.mp3')">1-01 Submerged Hell of Sunken Sorrow</a></li>
+      <li><a href="#" onclick="playSong('1-02 Magician Melancholy.mp3')">1-02 Magician's Melancholy</a></li>
+      <li><a href="#" onclick="playSong('1-05 The Dark Blowhole.mp3')">1-05 The Dark Blowhole</a></li>
+      <li><a href="#" onclick="playSong('DDC Raikos Theme.mp3')">DDC Raiko's Theme: Primordial Beat ~ Pristine Beat</a></li>
+      <li><a href="#" onclick="playSong('LoLK Junkos Theme_ Pure Furies _ Whereabouts of the Heart (128 kbps).mp3')">
+        LoLK Junko's Theme</a></li>
+      <li><a href="#" onclick="playSong('y2mate.is - Scissor Seven S1 Opening Scissors Assassin 剪刀刺客 Eng Sub-99jBPyud-6I-192k-1691157126.mp3')">
+        Scissor Seven theme song</a></li>
+        <li><a href="#" onclick="playSong('y2mate.is - Scissor Seven S1 Opening Scissors Assassin 剪刀刺客 Eng Sub-99jBPyud-6I-192k-16911571264')">
+        Touhou Desire drive</a></li>
+      <li><a href="#" onclick="playSong('-TD Stage 4 Theme_ Desire Drive-(128kbps).mp4')">
+        Initial D Running in the 90s</a></li>
+      <li><a href="#" onclick="playSong('y2mate.is - Initial D Running in The 90s Lyrics -v-bw4lzQLiI-192k-1691157604.mp3')">
+        WBaWC Stage 4 Theme: Unlocated Hell</a></li>
+      <li><a href="#" onclick="playSong('y2mate.is - Initial D Running in The 90s Lyrics -v-bw4lzQLiI-192k-1691157604.mp3')">
+        WBaWC Stage 4 Theme: Unlocated Hell</a></li
+                                              
+                                                 
+                                            
+        </ul>
+    </div>
+  <div id="content">
+    <audio id="audioPlayer">
+      <source id="audioSource" src="" type="audio/mpeg">
+    </audio>
+    <div id="controls">
+      <button id="playButton" onclick="togglePlayPause()">Play</button>
+      <button id="pauseButton" onclick="togglePlayPause()" style="display: none;">Pause</button>
+      <input id="volumeSlider" type="range" min="0" max="1" step="0.1" value="1" onchange="changeVolume(this.value)">
+      <div id="progressBar">
+        <div id="progressBarFill"></div>
+      </div>
+      <div id="time">00:00 / 00:00</div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
