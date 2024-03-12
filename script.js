@@ -3,6 +3,7 @@ const audioSource = document.getElementById('audioSource');
 const playButton = document.getElementById('playButton');
 const pauseButton = document.getElementById('pauseButton');
 const volumeSlider = document.getElementById('volumeSlider');
+const progressBar = document.getElementById('progressBar');
 const progressBarFill = document.getElementById('progressBarFill');
 const timeDisplay = document.getElementById('time');
 
@@ -37,10 +38,10 @@ function changeVolume(volume) {
 }
 
 audioPlayer.addEventListener('timeupdate', updateProgressBar);
+progressBar.addEventListener('click', seek);
 progressBarFill.addEventListener('mousedown', startDrag);
 window.addEventListener('mousemove', handleDrag);
 window.addEventListener('mouseup', endDrag);
-audioPlayer.addEventListener('progress', updateLoadingProgress);
 
 function updateProgressBar() {
   const currentTime = audioPlayer.currentTime;
@@ -50,6 +51,14 @@ function updateProgressBar() {
   timeDisplay.textContent = formatTime(currentTime) + ' / ' + formatTime(duration);
 }
 
+function seek(e) {
+  const progressBarWidth = progressBar.offsetWidth;
+  const clickPosition = e.clientX - progressBar.getBoundingClientRect().left;
+  const newProgress = clickPosition / progressBarWidth;
+  const duration = audioPlayer.duration;
+  audioPlayer.currentTime = duration * newProgress;
+}
+
 function startDrag(e) {
   isDragging = true;
   handleDrag(e);
@@ -57,10 +66,12 @@ function startDrag(e) {
 
 function handleDrag(e) {
   if (!isDragging) return;
-  const progressBarWidth = progressBarFill.parentElement.offsetWidth;
-  const newProgress = (e.clientX - progressBarFill.parentElement.offsetLeft) / progressBarWidth;
+  const progressBarWidth = progressBar.offsetWidth;
+  const clickPosition = e.clientX - progressBar.getBoundingClientRect().left;
+  const newProgress = clickPosition / progressBarWidth;
   const duration = audioPlayer.duration;
   audioPlayer.currentTime = duration * newProgress;
+  updateProgressBar();
 }
 
 function endDrag() {
@@ -77,10 +88,3 @@ function padTime(time) {
   return time.toString().padStart(2, '0');
 }
 
-function updateLoadingProgress() {
-  const buffered = audioPlayer.buffered.end(0);
-  const duration = audioPlayer.duration;
-  const loadedPercentage = (buffered / duration) * 100;
-  // Display loaded percentage somewhere in your UI, for example:
-  console.log(`Loaded: ${loadedPercentage.toFixed(2)}%`);
-}
