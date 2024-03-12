@@ -40,6 +40,7 @@ audioPlayer.addEventListener('timeupdate', updateProgressBar);
 progressBarFill.addEventListener('mousedown', startDrag);
 window.addEventListener('mousemove', handleDrag);
 window.addEventListener('mouseup', endDrag);
+audioPlayer.addEventListener('progress', updateLoadingProgress);
 
 function updateProgressBar() {
   const currentTime = audioPlayer.currentTime;
@@ -56,8 +57,8 @@ function startDrag(e) {
 
 function handleDrag(e) {
   if (!isDragging) return;
-  const progressBarWidth = progressBarFill.offsetWidth;
-  const newProgress = (e.clientX - progressBarFill.offsetLeft) / progressBarWidth;
+  const progressBarWidth = progressBarFill.parentElement.offsetWidth;
+  const newProgress = (e.clientX - progressBarFill.parentElement.offsetLeft) / progressBarWidth;
   const duration = audioPlayer.duration;
   audioPlayer.currentTime = duration * newProgress;
 }
@@ -74,4 +75,12 @@ function formatTime(time) {
 
 function padTime(time) {
   return time.toString().padStart(2, '0');
+}
+
+function updateLoadingProgress() {
+  const buffered = audioPlayer.buffered.end(0);
+  const duration = audioPlayer.duration;
+  const loadedPercentage = (buffered / duration) * 100;
+  // Display loaded percentage somewhere in your UI, for example:
+  console.log(`Loaded: ${loadedPercentage.toFixed(2)}%`);
 }
