@@ -22,7 +22,7 @@ let bossX = width / 2 - 75;
 const bossSize = 150; // Boss size (3 times bigger than normal enemy)
 
 const playerSpeed = 7;
-const bulletSpeed = 10; // Slower bullet speed
+const bulletSpeed = 30; // Slower bullet speed
 let enemySpeed = 2; // Speed of normal enemies
 let enemyBulletSpeed = 5;
 let bossBulletSpeed = 9;
