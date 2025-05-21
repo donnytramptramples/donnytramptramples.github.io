@@ -3,21 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to My Website</title>
+    <title>Project Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>Explore My Projects</h1>
-            <p>Choose an experience to explore below.</p>
-        </header>
-        <div class="buttons">
-            <a href="https://donnytramptramples.github.io/camera-object-identification/" class="button">Camera Object Identification</a>
-            <a href="https://donnytramptramples.github.io/bullet_hell/" class="button">Bullet Hell Game</a>
-            <a href="https://donnytramptramples.github.io/Touhou_Calendar/" class="button">Touhou Calendar
-            <a href="https://donnytramptramples.github.io/TouhoucalendarV2/" class="button">Touhou Calendar V2
-            
+<body class="light">
+    <div class="theme-toggle">
+        <button id="themeToggle" class="p-3 rounded-full shadow-lg bg-white dark:bg-gray-800 hover:glow transition-all">
+            <i class="fas fa-moon dark:hidden text-gray-700"></i>
+            <i class="fas fa-sun hidden dark:block text-yellow-300"></i>
+        </button>
+    </div>
+
+    <div class="min-h-screen flex items-center justify-center px-4 py-12">
+        <div class="max-w-3xl w-full mx-4">
+            <div class="card-light dark:card-dark rounded-xl shadow-xl p-8 fade-in" style="animation-delay: 0.1s;">
+                <header class="mb-8 text-center">
+                    <div class="flex justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" class="accent-light dark:accent-dark">
+                            <path fill="currentColor" d="M24 4a20 20 0 1 0 0 40 20 20 0 0 0 0-40zm0 36a16 16 0 1 1 0-32 16 16 0 0 1 0 32zm-4-24h8v8h-8zm0 10h8v8h-8z"/>
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl md:text-4xl font-bold mb-2">
+                        <span class="accent-light dark:accent-dark">Project</span> Explorer
+                    </h1>
+                    <p class="text-lg opacity-80">
+                        Select a project to explore
+                    </p>
+                </header>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <a href="https://donnytramptramples.github.io/camera-object-identification/" 
+                       class="project-card button-light dark:button-dark rounded-lg py-4 px-6 text-center font-medium transition-all duration-300 hover:opacity-90 fade-in" style="animation-delay: 0.2s;">
+                        <i class="fas fa-camera"></i>
+                        Camera Object ID
+                    </a>
+                    <a href="https://donnytramptramples.github.io/bullet_hell/" 
+                       class="project-card button-light dark:button-dark rounded-lg py-4 px-6 text-center font-medium transition-all duration-300 hover:opacity-90 fade-in" style="animation-delay: 0.3s;">
+                        <i class="fas fa-gamepad"></i>
+                        Bullet Hell Game
+                    </a>
+                    <a href="https://donnytramptramples.github.io/Touhou_Calendar/" 
+                       class="project-card button-light dark:button-dark rounded-lg py-4 px-6 text-center font-medium transition-all duration-300 hover:opacity-90 fade-in" style="animation-delay: 0.4s;">
+                        <i class="fas fa-calendar"></i>
+                        Touhou Calendar
+                    </a>
+                    <a href="https://donnytramptramples.github.io/TouhoucalendarV2/" 
+                       class="project-card button-light dark:button-dark rounded-lg py-4 px-6 text-center font-medium transition-all duration-300 hover:opacity-90 fade-in" style="animation-delay: 0.5s;">
+                        <i class="fas fa-calendar-check"></i>
+                        Touhou Calendar V2
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
