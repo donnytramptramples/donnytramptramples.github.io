@@ -1,0 +1,96 @@
+📅 January Events
+1. January 4 – Aunn Day
+Character: Aunn
+Details: Celebrated by fans of Aunn, often with art or doujinshi.
+Source: Pixiv & TouhouWiki [source]
+📅 February Events
+2. February 22 – Cat Day Celebration
+Characters: Chen, Ran
+Details: Special day honoring all cat youkai in Gensokyo. Chen organizes games and activities, while Ran supervises to make sure things don’t get out of hand.
+Source: Custom event from your website code 
+3. February 14 – Valentine’s Incident
+Characters: Remilia Scarlet, Sakuya Izayoi
+Details: Annual chocolate-related incident at the Scarlet Devil Mansion. Remilia insists on receiving the most chocolates in Gensokyo, leading to competition.
+Source: Custom event from your website code 
+📅 March Events
+4. March 3 – Hina Kagiyama’s Doll Festival
+Character: Hina Kagiyama
+Details: Traditional celebration where dolls are displayed and honored.
+Source: Your website data 
+5. March 14 – White Day Return Gifts
+Characters: Sakuya Izayoi, Patchouli Knowledge
+Details: Those who received chocolates on Valentine’s Day must return the favor. Sakuya organizes a massive gift exchange at the Scarlet Devil Mansion.
+Source: Custom event from your website code 
+📅 April Events
+6. April 5 – Sakura Festival
+Characters: Yuyuko Saigyou, Youka
+Details: A celebration of cherry blossoms in Gensokyo.
+Source: Generated in improved version of your website 
+7. April 9 – Meira Day
+Character: Meira
+Details: Based on goroawase (phonetic pun): 8/3 = “Yami” (darkness), referencing Meira’s theme Yami no Chikara ("やみのちから").
+Source: From uploaded text file [source]
+📅 May Events
+8. May 9 – Koakuma Day
+Character: Koakuma
+Details: Observed by fans, often with themed illustrations or stories.
+Source: From uploaded text file
+9. May 15 – Minoriko Aki Day
+Character: Minoriko Aki
+Details: Celebrated for her association with harvests and agriculture.
+Source: From uploaded text file
+📅 June Events
+10. June 12 – Waterworks Day
+Characters: Nitori Kawashiro, Kappa
+Details: Kappa celebrate their engineering achievements.
+Source: Generated in improved version of your website 
+📅 July Events
+11. July 7 – Hakurei Shrine Annual Festival
+Characters: Reimu Hakurei, Marisa Kirisame
+Details: The largest annual festival held at the Hakurei Shrine. It's a time when humans and youkai come together to celebrate peace and prosperity.
+Source: Custom event from your website code 
+12. July 30 – Tenshi Hinanawi Day
+Character: Tenshi Hinanawi
+Details: Marked as “#10月6日はてんこの日に間に合わなかった人の日” — possibly a joke or alternate calendar reference.
+Source: From uploaded text file
+📅 August Events
+13. August 3 – Meira Day
+Character: Meira
+Details: Another observed date for Meira, based on phonetic interpretation.
+Source: From uploaded text file [source]
+14. August 15 – Yukari Yakumo’s Gap Day
+Character: Yukari Yakumo
+Details: A day dedicated to celebrating Yukari’s mysterious ability to appear anywhere through gaps.
+Source: Custom event from your website code 
+📅 September Events
+15. September 9 – Cirno Day
+Character: Cirno
+Details: Unofficial holiday featuring ice sculpting contests, snowball fights, and various winter-themed activities.
+Source: Custom event from your website code 
+16. September 15 – Moon Viewing Festival
+Characters: Eirin Yagokoro, Kaguya Houraisan
+Details: A traditional moon-viewing festival where guests enjoy dumplings and tea under the full moon.
+Source: Custom event from your website code 
+📅 October Events
+17. October 6 – Tenshi Day
+Character: Tenshi Hinanawi
+Details: Possibly related to missed deadlines or humorous references.
+Source: From uploaded text file
+18. October 10 – Kappa Infrastructure Day
+Characters: Nitori Kawashiro
+Details: A celebration of Kappa engineering skills and infrastructure projects.
+Source: Custom event from your website code 
+19. October 31 – Halloween Night in Gensokyo
+Characters: Koakuma, Patchouli
+Details: The residents of the Scarlet Devil Mansion try to celebrate Halloween, leading to chaos and spooky incidents throughout Gensokyo.
+Source: Custom event from your website code 
+📅 November Events
+20. November 11 – Autumn Harvest Festival
+Characters: Minoriko Aki, Shizuha Aki
+Details: A festival celebrating the autumn harvest. Minoriko and Shizuha organize food stalls and blessing ceremonies.
+Source: Custom event from your website code 
+📅 December Events
+21. December 24–25 – Christmas in Gensokyo
+Characters: Iku Nagae, Tenshi Hinanawi
+Details: A Western-style Christmas celebration introduced to Gensokyo. Celestial beings like Iku descend to spread holiday cheer.
+Source: Custom event from your website code 
