@@ -99,13 +99,28 @@
 
         let stageCleared = false;
 
-        // Create image objects
+        // Create image objects with paths to images folder
         const playerImage = new Image();
+        playerImage.src = 'images/player.png';
         const normalEnemyImage = new Image();
+        normalEnemyImage.src = 'images/enemy.png';
         const bulletImage = new Image();
+        bulletImage.src = 'images/bullet.png';
         const enemyBulletImage = new Image();
+        enemyBulletImage.src = 'images/enemy_bullet.png';
         const lifeImage = new Image();
+        lifeImage.src = 'images/life.png';
         const bossImage = new Image();
+        bossImage.src = 'images/boss.png';
+        const explosionImage = new Image();
+        explosionImage.src = 'images/explode.png';
+
+        // Explosion variables
+        let explosionActive = false;
+        let explosionX = 0;
+        let explosionY = 0;
+        let explosionFrames = 0;
+        const maxExplosionFrames = 25; // Total frames in the explosion animation
 
         // Key press management
         let keys = {};
@@ -230,8 +245,17 @@
             });
 
             // Boss logic
-            if (bossSpawned && bossHealth > 0) {
+            if (bossSpawned && bossHealth > 0 && !explosionActive) {
                 updateBoss();
+            }
+
+            // Update explosion animation if active
+            if (explosionActive) {
+                explosionFrames++;
+                if (explosionFrames >= maxExplosionFrames) {
+                    explosionActive = false;
+                    stageCleared = true;
+                }
             }
         }
 
@@ -280,8 +304,29 @@
                 }
             });
 
-            if (bossHealth <= 0) {
-                stageCleared = true;
+            // Trigger explosion when boss health reaches 0
+            if (bossHealth <= 0 && !explosionActive) {
+                triggerBossExplosion();
+            }
+        }
+
+        // Trigger boss explosion
+        function triggerBossExplosion() {
+            explosionX = bossX;
+            explosionY = 50;
+            explosionFrames = 0;
+            explosionActive = true;
+        }
+
+        // Draw explosion animation
+        function drawExplosion() {
+            if (explosionActive) {
+                const frameWidth = 128; // Assuming each frame is 128x128 in size
+                const frameHeight = 128;
+                const frameX = (explosionFrames % 5) * frameWidth;
+                const frameY = Math.floor(explosionFrames / 5) * frameHeight;
+                ctx.drawImage(explosionImage, frameX, frameY, frameWidth, frameHeight, 
+                             explosionX, explosionY, bossSize, bossSize);
             }
         }
 
@@ -291,38 +336,30 @@
 
             // Draw lives
             for (let i = 0; i < lives; i++) {
-                ctx.fillStyle = 'red';
-                ctx.fillRect(10 + i * 30, 10, 20, 20);
+                ctx.drawImage(lifeImage, 10 + i * 30, 10, 20, 20);
             }
 
             // Draw player
-            ctx.fillStyle = 'blue';
-            ctx.fillRect(player_x, player_y, 50, 50);
+            ctx.drawImage(playerImage, player_x, player_y, 50, 50);
 
             // Draw bullets
             bullets.forEach(bullet => {
-                ctx.fillStyle = 'yellow';
-                ctx.fillRect(bullet.x, bullet.y, 5, 15);
+                ctx.drawImage(bulletImage, bullet.x, bullet.y);
             });
 
             // Draw enemy bullets
             enemyBullets.forEach(bullet => {
-                ctx.beginPath();
-                ctx.arc(bullet.x, bullet.y, 15, 0, Math.PI * 2);
-                ctx.fillStyle = 'red';
-                ctx.fill();
+                ctx.drawImage(enemyBulletImage, bullet.x, bullet.y, 30, 30);
             });
 
             // Draw normal enemies
             normalEnemies.forEach(enemy => {
-                ctx.fillStyle = 'green';
-                ctx.fillRect(enemy.x, enemy.y, 30, 30);
+                ctx.drawImage(normalEnemyImage, enemy.x, enemy.y, 30, 30);
             });
 
-            // Draw boss if spawned
-            if (bossSpawned) {
-                ctx.fillStyle = 'purple';
-                ctx.fillRect(bossX, 50, bossSize, bossSize);
+            // Draw boss if spawned and not exploding
+            if (bossSpawned && !explosionActive) {
+                ctx.drawImage(bossImage, bossX, 50, bossSize, bossSize);
 
                 // Draw boss health bar
                 const healthBarWidth = 200;
@@ -337,6 +374,11 @@
                 ctx.fillStyle = 'blue';
                 ctx.fill();
             });
+
+            // Draw explosion if active
+            if (explosionActive) {
+                drawExplosion();
+            }
         }
 
         // Game over function
@@ -364,11 +406,23 @@
             enemyBullets = [];
             normalEnemies = [];
             bossBullets = [];
+            explosionActive = false;
+        }
+
+        // Load images and start the game when they are ready
+        function loadImages() {
+            return Promise.all([playerImage, normalEnemyImage, bulletImage, enemyBulletImage, lifeImage, bossImage, explosionImage].map(img => {
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                });
+            }));
         }
 
         // Initialize the game
-        canvas.style.display = 'none';
-        startButton.style.display = 'block';
+        loadImages().then(() => {
+            canvas.style.display = 'none';
+            startButton.style.display = 'block';
+        });
     </script>
 </body>
 </html>
