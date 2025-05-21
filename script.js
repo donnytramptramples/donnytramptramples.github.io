@@ -1,34 +1,31 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const headerText = document.querySelector('header h1');
-    const subText = document.querySelector('header p');
-    const buttons = document.querySelectorAll('.button');
+    // Theme toggle functionality
+    const themeToggle = document.getElementById('themeToggle');
+    const html = document.documentElement;
 
-    // Animate header and subheader text
-    headerText.style.opacity = 0;
-    subText.style.opacity = 0;
-    headerText.style.transform = 'translateY(-20px)';
-    subText.style.transform = 'translateY(-20px)';
+    // Check for saved theme preference or use system preference
+    const savedTheme = localStorage.getItem('theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-    setTimeout(() => {
-        headerText.style.transition = 'opacity 1s ease, transform 1s ease';
-        headerText.style.opacity = 1;
-        headerText.style.transform = 'translateY(0)';
-    }, 500);
+    if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+        html.classList.add('dark');
+    }
 
-    setTimeout(() => {
-        subText.style.transition = 'opacity 1s ease, transform 1s ease';
-        subText.style.opacity = 1;
-        subText.style.transform = 'translateY(0)';
-    }, 1000);
+    themeToggle.addEventListener('click', () => {
+        html.classList.toggle('dark');
+        const isDark = html.classList.contains('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
 
-    // Bounce effect on button hover
-    buttons.forEach(button => {
-        button.addEventListener('mouseover', () => {
-            button.style.transform = 'scale(1.1) translateY(-5px)';
-        });
+        // Add animation to the toggle button
+        themeToggle.classList.add('animate-pulse');
+        setTimeout(() => {
+            themeToggle.classList.remove('animate-pulse');
+        }, 300);
+    });
 
-        button.addEventListener('mouseout', () => {
-            button.style.transform = 'scale(1) translateY(0)';
-        });
+    // Add fade-in animation to all elements with the fade-in class
+    const fadeElements = document.querySelectorAll('.fade-in');
+    fadeElements.forEach((el, index) => {
+        el.style.animationDelay = `${index * 0.1}s`;
     });
 });
