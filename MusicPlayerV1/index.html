@@ -3,476 +3,440 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KDE Light Music Player</title>
+    <title>KDE Music Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Custom KDE light theme colors */
         :root {
-            --primary-color: #2980b9;
-            --secondary-color: #3498db;
-            --background-color: #f5f5f5;
-            --panel-color: #ffffff;
-            --text-color: #333333;
+            --primary: #2980b9;
+            --primary-light: #3498db;
+            --background: #f5f5f5;
+            --panel: #ffffff;
+            --text: #333333;
             --text-secondary: #666666;
-            --border-color: #e0e0e0;
-            --shadow-color: rgba(0, 0, 0, 0.1);
-            --progress-background: #e0e0e0;
-            --progress-fill: var(--primary-color);
-            --hover-color: #f0f0f0;
+            --border: #e0e0e0;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --hover: #f0f0f0;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Noto Sans', sans-serif;
+        /* Buffering animation */
+        @keyframes buffering {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 200% 0%; }
         }
 
-        body {
-            background-color: var(--background-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
+        .buffering {
+            background: linear-gradient(90deg, var(--border) 25%, var(--primary-light) 50%, var(--border) 75%);
+            background-size: 200% 100%;
+            animation: buffering 1.5s infinite linear;
         }
 
-        .music-player {
-            width: 100%;
-            max-width: 400px;
-            background-color: var(--panel-color);
-            border-radius: 12px;
-            box-shadow: 0 4px 20px var(--shadow-color);
-            overflow: hidden;
-        }
-
-        .player-header {
-            padding: 20px;
-            background-color: var(--primary-color);
-            color: white;
-            text-align: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .album-art {
-            width: 200px;
-            height: 200px;
-            margin: 20px auto;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 10px var(--shadow-color);
-            background-color: var(--progress-background);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .album-art img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .album-art .placeholder {
-            font-size: 3rem;
-            color: var(--text-secondary);
-        }
-
-        .song-info {
-            text-align: center;
-            padding: 0 20px;
-        }
-
-        .song-title {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .song-artist {
-            font-size: 1rem;
-            color: var(--text-secondary);
-            margin-bottom: 20px;
-        }
-
-        .progress-container {
-            padding: 0 20px;
-            margin-bottom: 20px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background-color: var(--progress-background);
-            border-radius: 3px;
-            cursor: pointer;
-            margin-bottom: 5px;
-        }
-
-        .progress {
-            height: 100%;
-            background-color: var(--progress-fill);
-            border-radius: 3px;
-            width: 0%;
-            transition: width 0.1s linear;
-        }
-
-        .time-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        .controls {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            gap: 20px;
-        }
-
-        .control-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            cursor: pointer;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: background-color 0.2s;
-        }
-
-        .control-btn:hover {
-            background-color: var(--hover-color);
-        }
-
-        .control-btn.play-pause {
-            background-color: var(--primary-color);
-            color: white;
-            font-size: 2rem;
-        }
-
-        .control-btn.play-pause:hover {
-            background-color: var(--secondary-color);
-        }
-
-        .playlist {
-            max-height: 300px;
-            overflow-y: auto;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .playlist-item {
-            padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .playlist-item:hover {
-            background-color: var(--hover-color);
-        }
-
-        .playlist-item.active {
-            background-color: rgba(41, 128, 185, 0.1);
-            border-left: 3px solid var(--primary-color);
-        }
-
-        .playlist-item-info {
-            flex: 1;
-        }
-
-        .playlist-item-title {
-            font-weight: 500;
-        }
-
-        .playlist-item-artist {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        .playlist-item-duration {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            margin-left: 10px;
-        }
-
-        /* Scrollbar styling */
-        .playlist::-webkit-scrollbar {
+        /* Custom scrollbar */
+        .playlist-scroll::-webkit-scrollbar {
             width: 6px;
         }
 
-        .playlist::-webkit-scrollbar-track {
-            background: var(--progress-background);
+        .playlist-scroll::-webkit-scrollbar-track {
+            background: var(--border);
         }
 
-        .playlist::-webkit-scrollbar-thumb {
-            background: var(--primary-color);
+        .playlist-scroll::-webkit-scrollbar-thumb {
+            background: var(--primary);
             border-radius: 3px;
-        }
-
-        /* KDE style window controls */
-        .window-controls {
-            display: flex;
-            justify-content: flex-end;
-            padding: 10px;
-            background-color: var(--panel-color);
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .window-btn {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            margin-left: 8px;
-            border: none;
-            cursor: pointer;
-        }
-
-        .window-btn.close {
-            background-color: #ff5f56;
-        }
-
-        .window-btn.minimize {
-            background-color: #ffbd2e;
-        }
-
-        .window-btn.maximize {
-            background-color: #27c93f;
         }
     </style>
 </head>
-<body>
-    <div class="music-player">
-        <div class="window-controls">
-            <button class="window-btn close"></button>
-            <button class="window-btn minimize"></button>
-            <button class="window-btn maximize"></button>
+<body class="bg-[var(--background)] text-[var(--text)] min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-[var(--panel)] rounded-xl shadow-lg overflow-hidden">
+        <!-- Player header -->
+        <div class="bg-[var(--primary)] text-white p-4 text-center">
+            <h1 class="text-xl font-bold">KDE Music Player</h1>
         </div>
-        <div class="player-header">
-            KDE Music Player
-        </div>
-        <div class="album-art">
-            <div class="placeholder">♫</div>
-        </div>
-        <div class="song-info">
-            <div class="song-title">No song selected</div>
-            <div class="song-artist">Artist</div>
-        </div>
-        <div class="progress-container">
-            <div class="progress-bar" id="progress-bar">
-                <div class="progress" id="progress"></div>
+
+        <!-- Album art -->
+        <div class="flex justify-center p-6">
+            <div class="w-48 h-48 rounded-lg shadow-md bg-gradient-to-br from-[var(--primary)] to-[var(--primary-light)] flex items-center justify-center overflow-hidden">
+                <div id="albumArt" class="w-full h-full flex items-center justify-center text-white text-6xl">
+                    ♫
+                </div>
             </div>
-            <div class="time-info">
-                <span id="current-time">0:00</span>
+        </div>
+
+        <!-- Song info -->
+        <div class="px-6 text-center">
+            <h2 id="songTitle" class="text-lg font-semibold truncate">No song selected</h2>
+            <p id="songArtist" class="text-sm text-[var(--text-secondary)]">Artist</p>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="px-6 mt-4">
+            <div class="relative h-2 w-full bg-[var(--border)] rounded-full overflow-hidden">
+                <div id="bufferedProgress" class="absolute h-full bg-gray-300"></div>
+                <div id="progress" class="absolute h-full bg-[var(--primary)]"></div>
+            </div>
+            <div class="flex justify-between text-xs text-[var(--text-secondary)] mt-1">
+                <span id="currentTime">0:00</span>
                 <span id="duration">0:00</span>
             </div>
         </div>
-        <div class="controls">
-            <button class="control-btn" id="prev-btn">⏮</button>
-            <button class="control-btn play-pause" id="play-btn">▶</button>
-            <button class="control-btn" id="next-btn">⏭</button>
+
+        <!-- Controls -->
+        <div class="flex justify-center items-center p-6 space-x-4">
+            <button id="prevBtn" class="w-10 h-10 rounded-full flex items-center justify-center text-[var(--primary)] hover:bg-[var(--hover)] transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+            <button id="playBtn" class="w-12 h-12 rounded-full bg-[var(--primary)] text-white flex items-center justify-center hover:bg-[var(--primary-light)] transition">
+                <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+            <button id="nextBtn" class="w-10 h-10 rounded-full flex items-center justify-center text-[var(--primary)] hover:bg-[var(--hover)] transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
         </div>
-        <div class="playlist" id="playlist">
-            <!-- Playlist items will be added here by JavaScript -->
+
+        <!-- Volume control -->
+        <div class="px-6 pb-4 flex items-center space-x-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7.975 7.975 0 015.657 2.343m0 0a7.975 7.975 0 010 11.314m-11.314 0a7.975 7.975 0 010-11.314m0 0a7.975 7.975 0 015.657-2.343" />
+            </svg>
+            <input id="volumeControl" type="range" min="0" max="1" step="0.01" value="0.7" class="w-full h-1 bg-[var(--border)] rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--primary)]">
+        </div>
+
+        <!-- Playlist -->
+        <div class="border-t border-[var(--border)]">
+            <div class="p-3 bg-[var(--hover)]">
+                <h3 class="text-sm font-medium text-[var(--text)]">Playlist</h3>
+            </div>
+            <div id="playlist" class="max-h-64 overflow-y-auto playlist-scroll">
+                <!-- Playlist items will be added here -->
+            </div>
+        </div>
+
+        <!-- File input (hidden) -->
+        <input type="file" id="fileInput" accept="audio/*" multiple class="hidden">
+        
+        <!-- Add files button -->
+        <div class="p-4 border-t border-[var(--border)]">
+            <button id="addFilesBtn" class="w-full py-2 px-4 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-light)] transition flex items-center justify-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span>Add Music Files</span>
+            </button>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Sample playlist data
-            const playlist = [
-                {
-                    title: "Plasma",
-                    artist: "KDE Community",
-                    duration: "3:45",
-                    src: "https://example.com/plasma.mp3",
-                    cover: "https://via.placeholder.com/300/2980b9/ffffff?text=Plasma"
-                },
-                {
-                    title: "Dolphin",
-                    artist: "KDE Apps",
-                    duration: "2:30",
-                    src: "https://example.com/dolphin.mp3",
-                    cover: "https://via.placeholder.com/300/3498db/ffffff?text=Dolphin"
-                },
-                {
-                    title: "Konqi",
-                    artist: "KDE Mascot",
-                    duration: "4:15",
-                    src: "https://example.com/konqi.mp3",
-                    cover: "https://via.placeholder.com/300/2ecc71/ffffff?text=Konqi"
-                },
-                {
-                    title: "Breeze",
-                    artist: "KDE Theme",
-                    duration: "3:20",
-                    src: "https://example.com/breeze.mp3",
-                    cover: "https://via.placeholder.com/300/e74c3c/ffffff?text=Breeze"
-                },
-                {
-                    title: "Okular",
-                    artist: "KDE Office",
-                    duration: "2:55",
-                    src: "https://example.com/okular.mp3",
-                    cover: "https://via.placeholder.com/300/9b59b6/ffffff?text=Okular"
-                }
-            ];
-
             // DOM elements
             const audio = new Audio();
-            const playBtn = document.getElementById('play-btn');
-            const prevBtn = document.getElementById('prev-btn');
-            const nextBtn = document.getElementById('next-btn');
-            const progressBar = document.getElementById('progress-bar');
+            const playBtn = document.getElementById('playBtn');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
             const progress = document.getElementById('progress');
-            const currentTimeEl = document.getElementById('current-time');
+            const bufferedProgress = document.getElementById('bufferedProgress');
+            const currentTimeEl = document.getElementById('currentTime');
             const durationEl = document.getElementById('duration');
             const playlistEl = document.getElementById('playlist');
-            const albumArt = document.querySelector('.album-art');
-            const songTitle = document.querySelector('.song-title');
-            const songArtist = document.querySelector('.song-artist');
+            const albumArt = document.getElementById('albumArt');
+            const songTitle = document.getElementById('songTitle');
+            const songArtist = document.getElementById('songArtist');
+            const volumeControl = document.getElementById('volumeControl');
+            const playIcon = document.getElementById('playIcon');
+            const addFilesBtn = document.getElementById('addFilesBtn');
+            const fileInput = document.getElementById('fileInput');
 
             // Player state
             let isPlaying = false;
             let currentSongIndex = 0;
+            let playlist = [];
+            let isSeeking = false;
 
-            // Initialize playlist
-            function initPlaylist() {
-                playlistEl.innerHTML = '';
-                playlist.forEach((song, index) => {
-                    const playlistItem = document.createElement('div');
-                    playlistItem.classList.add('playlist-item');
-                    if (index === currentSongIndex) {
-                        playlistItem.classList.add('active');
+            // Initialize player
+            function initPlayer() {
+                // Set initial volume
+                audio.volume = volumeControl.value;
+                
+                // Event listeners
+                playBtn.addEventListener('click', togglePlay);
+                prevBtn.addEventListener('click', playPrevious);
+                nextBtn.addEventListener('click', playNext);
+                
+                audio.addEventListener('timeupdate', updateProgress);
+                audio.addEventListener('progress', updateBuffered);
+                audio.addEventListener('ended', playNext);
+                audio.addEventListener('play', () => {
+                    isPlaying = true;
+                    updatePlayButton();
+                });
+                audio.addEventListener('pause', () => {
+                    isPlaying = false;
+                    updatePlayButton();
+                });
+                audio.addEventListener('waiting', () => {
+                    progress.classList.add('buffering');
+                });
+                audio.addEventListener('playing', () => {
+                    progress.classList.remove('buffering');
+                });
+                
+                volumeControl.addEventListener('input', () => {
+                    audio.volume = volumeControl.value;
+                });
+                
+                addFilesBtn.addEventListener('click', () => {
+                    fileInput.click();
+                });
+                
+                fileInput.addEventListener('change', handleFileSelection);
+                
+                // Progress bar seeking
+                const progressContainer = progress.parentElement;
+                progressContainer.addEventListener('mousedown', (e) => {
+                    isSeeking = true;
+                    seekToPosition(e);
+                });
+                
+                document.addEventListener('mousemove', (e) => {
+                    if (isSeeking) {
+                        seekToPosition(e);
                     }
-                    playlistItem.innerHTML = `
-                        <div class="playlist-item-info">
-                            <div class="playlist-item-title">${song.title}</div>
-                            <div class="playlist-item-artist">${song.artist}</div>
-                        </div>
-                        <div class="playlist-item-duration">${song.duration}</div>
-                    `;
-                    playlistItem.addEventListener('click', () => playSong(index));
-                    playlistEl.appendChild(playlistItem);
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    isSeeking = false;
+                });
+                
+                // Touch support
+                progressContainer.addEventListener('touchstart', (e) => {
+                    isSeeking = true;
+                    seekToPosition(e.touches[0]);
+                });
+                
+                document.addEventListener('touchmove', (e) => {
+                    if (isSeeking) {
+                        seekToPosition(e.touches[0]);
+                    }
+                });
+                
+                document.addEventListener('touchend', () => {
+                    isSeeking = false;
                 });
             }
 
-            // Play song
-            function playSong(index) {
-                if (index >= 0 && index < playlist.length) {
-                    currentSongIndex = index;
-                    const song = playlist[currentSongIndex];
+            // Handle file selection
+            function handleFileSelection(e) {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+                
+                // Clear existing playlist
+                playlist = [];
+                
+                // Add new files to playlist
+                files.forEach((file, index) => {
+                    const song = {
+                        title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+                        artist: "Unknown Artist",
+                        duration: "0:00",
+                        file: file,
+                        url: URL.createObjectURL(file)
+                    };
                     
-                    audio.src = song.src;
-                    songTitle.textContent = song.title;
-                    songArtist.textContent = song.artist;
+                    playlist.push(song);
                     
-                    // Update album art (placeholder in this example)
-                    albumArt.innerHTML = song.cover 
-                        ? `<img src="${song.cover}" alt="${song.title}">` 
-                        : '<div class="placeholder">♫</div>';
-                    
-                    // Update active playlist item
-                    document.querySelectorAll('.playlist-item').forEach((item, i) => {
-                        if (i === currentSongIndex) {
-                            item.classList.add('active');
+                    // For the first file, try to extract metadata
+                    if (index === 0) {
+                        extractMetadata(file).then(metadata => {
+                            if (metadata) {
+                                song.title = metadata.title || song.title;
+                                song.artist = metadata.artist || song.artist;
+                                updatePlaylistUI();
+                            }
+                        });
+                    }
+                });
+                
+                // Play the first song
+                if (playlist.length > 0) {
+                    currentSongIndex = 0;
+                    playCurrentSong();
+                    updatePlaylistUI();
+                }
+                
+                // Reset file input
+                fileInput.value = '';
+            }
+
+            // Extract metadata from audio file
+            function extractMetadata(file) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const jsmediatags = window.jsmediatags;
+                        if (jsmediatags) {
+                            jsmediatags.read(file, {
+                                onSuccess: function(tag) {
+                                    const metadata = {
+                                        title: tag.tags.title,
+                                        artist: tag.tags.artist
+                                    };
+                                    resolve(metadata);
+                                },
+                                onError: function(error) {
+                                    console.log("Error reading metadata:", error);
+                                    resolve(null);
+                                }
+                            });
                         } else {
-                            item.classList.remove('active');
+                            resolve(null);
                         }
-                    });
-                    
-                    play();
-                }
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
             }
 
-            // Play/pause toggle
+            // Play current song
+            function playCurrentSong() {
+                if (playlist.length === 0) return;
+                
+                const song = playlist[currentSongIndex];
+                audio.src = song.url;
+                songTitle.textContent = song.title;
+                songArtist.textContent = song.artist;
+                
+                // Update album art placeholder
+                albumArt.innerHTML = '♫';
+                
+                // Play the audio
+                audio.play().catch(e => {
+                    console.error("Playback failed:", e);
+                });
+                
+                // Update playlist UI
+                updatePlaylistUI();
+            }
+
+            // Toggle play/pause
             function togglePlay() {
+                if (playlist.length === 0) {
+                    // If playlist is empty, trigger file selection
+                    fileInput.click();
+                    return;
+                }
+                
                 if (isPlaying) {
-                    pause();
+                    audio.pause();
                 } else {
-                    play();
+                    audio.play().catch(e => {
+                        console.error("Playback failed:", e);
+                    });
                 }
             }
 
-            // Play
-            function play() {
-                isPlaying = true;
-                audio.play();
-                playBtn.textContent = '⏸';
-            }
-
-            // Pause
-            function pause() {
-                isPlaying = false;
-                audio.pause();
-                playBtn.textContent = '▶';
-            }
-
-            // Next song
-            function nextSong() {
-                currentSongIndex = (currentSongIndex + 1) % playlist.length;
-                playSong(currentSongIndex);
-            }
-
-            // Previous song
-            function prevSong() {
+            // Play previous song
+            function playPrevious() {
+                if (playlist.length === 0) return;
+                
                 currentSongIndex = (currentSongIndex - 1 + playlist.length) % playlist.length;
-                playSong(currentSongIndex);
+                playCurrentSong();
+            }
+
+            // Play next song
+            function playNext() {
+                if (playlist.length === 0) return;
+                
+                currentSongIndex = (currentSongIndex + 1) % playlist.length;
+                playCurrentSong();
             }
 
             // Update progress bar
-            function updateProgress(e) {
-                const { duration, currentTime } = e.srcElement;
-                const progressPercent = (currentTime / duration) * 100;
-                progress.style.width = `${progressPercent}%`;
+            function updateProgress() {
+                if (!isSeeking) {
+                    const percent = (audio.currentTime / audio.duration) * 100 || 0;
+                    progress.style.width = `${percent}%`;
+                }
                 
                 // Update time display
-                const durationMinutes = Math.floor(duration / 60);
-                let durationSeconds = Math.floor(duration % 60);
-                if (durationSeconds < 10) {
-                    durationSeconds = `0${durationSeconds}`;
-                }
-                
-                // Avoid NaN display
-                if (durationSeconds) {
-                    durationEl.textContent = `${durationMinutes}:${durationSeconds}`;
-                }
-                
-                const currentMinutes = Math.floor(currentTime / 60);
-                let currentSeconds = Math.floor(currentTime % 60);
-                if (currentSeconds < 10) {
-                    currentSeconds = `0${currentSeconds}`;
-                }
-                currentTimeEl.textContent = `${currentMinutes}:${currentSeconds}`;
+                currentTimeEl.textContent = formatTime(audio.currentTime);
+                durationEl.textContent = formatTime(audio.duration);
             }
 
-            // Set progress when clicked on progress bar
-            function setProgress(e) {
-                const width = this.clientWidth;
-                const clickX = e.offsetX;
-                const duration = audio.duration;
-                audio.currentTime = (clickX / width) * duration;
+            // Update buffered progress
+            function updateBuffered() {
+                if (audio.buffered.length > 0) {
+                    const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
+                    const percent = (bufferedEnd / audio.duration) * 100 || 0;
+                    bufferedProgress.style.width = `${percent}%`;
+                }
             }
 
-            // Event listeners
-            playBtn.addEventListener('click', togglePlay);
-            prevBtn.addEventListener('click', prevSong);
-            nextBtn.addEventListener('click', nextSong);
-            audio.addEventListener('timeupdate', updateProgress);
-            audio.addEventListener('ended', nextSong);
-            progressBar.addEventListener('click', setProgress);
+            // Seek to position in progress bar
+            function seekToPosition(e) {
+                const progressContainer = progress.parentElement;
+                const rect = progressContainer.getBoundingClientRect();
+                const offsetX = e.clientX - rect.left;
+                const percent = Math.min(Math.max(offsetX / rect.width, 0), 1);
+                
+                progress.style.width = `${percent * 100}%`;
+                audio.currentTime = percent * audio.duration;
+                
+                // Update time display immediately
+                currentTimeEl.textContent = formatTime(audio.currentTime);
+            }
 
-            // Initialize
-            initPlaylist();
-            playSong(0);
+            // Format time (seconds to MM:SS)
+            function formatTime(seconds) {
+                if (isNaN(seconds)) return "0:00";
+                
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            }
+
+            // Update play button state
+            function updatePlayButton() {
+                if (isPlaying) {
+                    playIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />';
+                } else {
+                    playIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+                }
+            }
+
+            // Update playlist UI
+            function updatePlaylistUI() {
+                playlistEl.innerHTML = '';
+                
+                playlist.forEach((song, index) => {
+                    const item = document.createElement('div');
+                    item.className = `p-3 border-b border-[var(--border)] flex items-center justify-between cursor-pointer hover:bg-[var(--hover)] ${index === currentSongIndex ? 'bg-[rgba(41,128,185,0.1)] border-l-4 border-l-[var(--primary)]' : ''}`;
+                    item.innerHTML = `
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium truncate">${song.title}</div>
+                            <div class="text-sm text-[var(--text-secondary)] truncate">${song.artist}</div>
+                        </div>
+                        <div class="text-sm text-[var(--text-secondary)] ml-2">${song.duration}</div>
+                    `;
+                    item.addEventListener('click', () => {
+                        currentSongIndex = index;
+                        playCurrentSong();
+                    });
+                    
+                    playlistEl.appendChild(item);
+                });
+            }
+
+            // Initialize the player
+            initPlayer();
         });
     </script>
+
+    <!-- Include jsmediatags for metadata reading (optional) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.7/jsmediatags.min.js"></script>
 </body>
 </html>
