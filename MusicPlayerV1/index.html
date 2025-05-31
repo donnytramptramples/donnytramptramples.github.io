@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDE Light Music Player</title>
+    <style>
+        :root {
+            --primary-color: #2980b9;
+            --secondary-color: #3498db;
+            --background-color: #f5f5f5;
+            --panel-color: #ffffff;
+            --text-color: #333333;
+            --text-secondary: #666666;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --progress-background: #e0e0e0;
+            --progress-fill: var(--primary-color);
+            --hover-color: #f0f0f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Noto Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .music-player {
+            width: 100%;
+            max-width: 400px;
+            background-color: var(--panel-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px var(--shadow-color);
+            overflow: hidden;
+        }
+
+        .player-header {
+            padding: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .album-art {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px var(--shadow-color);
+            background-color: var(--progress-background);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .album-art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .album-art .placeholder {
+            font-size: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .song-info {
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .song-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .song-artist {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .progress-container {
+            padding: 0 20px;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: var(--progress-background);
+            border-radius: 3px;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+
+        .progress {
+            height: 100%;
+            background-color: var(--progress-fill);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .time-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .control-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            cursor: pointer;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .control-btn:hover {
+            background-color: var(--hover-color);
+        }
+
+        .control-btn.play-pause {
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 2rem;
+        }
+
+        .control-btn.play-pause:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .playlist {
+            max-height: 300px;
+            overflow-y: auto;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .playlist-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .playlist-item:hover {
+            background-color: var(--hover-color);
+        }
+
+        .playlist-item.active {
+            background-color: rgba(41, 128, 185, 0.1);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .playlist-item-info {
+            flex: 1;
+        }
+
+        .playlist-item-title {
+            font-weight: 500;
+        }
+
+        .playlist-item-artist {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .playlist-item-duration {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-left: 10px;
+        }
+
+        /* Scrollbar styling */
+        .playlist::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .playlist::-webkit-scrollbar-track {
+            background: var(--progress-background);
+        }
+
+        .playlist::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 3px;
+        }
+
+        /* KDE style window controls */
+        .window-controls {
+            display: flex;
+            justify-content: flex-end;
+            padding: 10px;
+            background-color: var(--panel-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .window-btn {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-left: 8px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .window-btn.close {
+            background-color: #ff5f56;
+        }
+
+        .window-btn.minimize {
+            background-color: #ffbd2e;
+        }
+
+        .window-btn.maximize {
+            background-color: #27c93f;
+        }
+    </style>
+</head>
+<body>
+    <div class="music-player">
+        <div class="window-controls">
+            <button class="window-btn close"></button>
+            <button class="window-btn minimize"></button>
+            <button class="window-btn maximize"></button>
+        </div>
+        <div class="player-header">
+            KDE Music Player
+        </div>
+        <div class="album-art">
+            <div class="placeholder">♫</div>
+        </div>
+        <div class="song-info">
+            <div class="song-title">No song selected</div>
+            <div class="song-artist">Artist</div>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+            <div class="time-info">
+                <span id="current-time">0:00</span>
+                <span id="duration">0:00</span>
+            </div>
+        </div>
+        <div class="controls">
+            <button class="control-btn" id="prev-btn">⏮</button>
+            <button class="control-btn play-pause" id="play-btn">▶</button>
+            <button class="control-btn" id="next-btn">⏭</button>
+        </div>
+        <div class="playlist" id="playlist">
+            <!-- Playlist items will be added here by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Sample playlist data
+            const playlist = [
+                {
+                    title: "Plasma",
+                    artist: "KDE Community",
+                    duration: "3:45",
+                    src: "https://example.com/plasma.mp3",
+                    cover: "https://via.placeholder.com/300/2980b9/ffffff?text=Plasma"
+                },
+                {
+                    title: "Dolphin",
+                    artist: "KDE Apps",
+                    duration: "2:30",
+                    src: "https://example.com/dolphin.mp3",
+                    cover: "https://via.placeholder.com/300/3498db/ffffff?text=Dolphin"
+                },
+                {
+                    title: "Konqi",
+                    artist: "KDE Mascot",
+                    duration: "4:15",
+                    src: "https://example.com/konqi.mp3",
+                    cover: "https://via.placeholder.com/300/2ecc71/ffffff?text=Konqi"
+                },
+                {
+                    title: "Breeze",
+                    artist: "KDE Theme",
+                    duration: "3:20",
+                    src: "https://example.com/breeze.mp3",
+                    cover: "https://via.placeholder.com/300/e74c3c/ffffff?text=Breeze"
+                },
+                {
+                    title: "Okular",
+                    artist: "KDE Office",
+                    duration: "2:55",
+                    src: "https://example.com/okular.mp3",
+                    cover: "https://via.placeholder.com/300/9b59b6/ffffff?text=Okular"
+                }
+            ];
+
+            // DOM elements
+            const audio = new Audio();
+            const playBtn = document.getElementById('play-btn');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const progressBar = document.getElementById('progress-bar');
+            const progress = document.getElementById('progress');
+            const currentTimeEl = document.getElementById('current-time');
+            const durationEl = document.getElementById('duration');
+            const playlistEl = document.getElementById('playlist');
+            const albumArt = document.querySelector('.album-art');
+            const songTitle = document.querySelector('.song-title');
+            const songArtist = document.querySelector('.song-artist');
+
+            // Player state
+            let isPlaying = false;
+            let currentSongIndex = 0;
+
+            // Initialize playlist
+            function initPlaylist() {
+                playlistEl.innerHTML = '';
+                playlist.forEach((song, index) => {
+                    const playlistItem = document.createElement('div');
+                    playlistItem.classList.add('playlist-item');
+                    if (index === currentSongIndex) {
+                        playlistItem.classList.add('active');
+                    }
+                    playlistItem.innerHTML = `
+                        <div class="playlist-item-info">
+                            <div class="playlist-item-title">${song.title}</div>
+                            <div class="playlist-item-artist">${song.artist}</div>
+                        </div>
+                        <div class="playlist-item-duration">${song.duration}</div>
+                    `;
+                    playlistItem.addEventListener('click', () => playSong(index));
+                    playlistEl.appendChild(playlistItem);
+                });
+            }
+
+            // Play song
+            function playSong(index) {
+                if (index >= 0 && index < playlist.length) {
+                    currentSongIndex = index;
+                    const song = playlist[currentSongIndex];
+                    
+                    audio.src = song.src;
+                    songTitle.textContent = song.title;
+                    songArtist.textContent = song.artist;
+                    
+                    // Update album art (placeholder in this example)
+                    albumArt.innerHTML = song.cover 
+                        ? `<img src="${song.cover}" alt="${song.title}">` 
+                        : '<div class="placeholder">♫</div>';
+                    
+                    // Update active playlist item
+                    document.querySelectorAll('.playlist-item').forEach((item, i) => {
+                        if (i === currentSongIndex) {
+                            item.classList.add('active');
+                        } else {
+                            item.classList.remove('active');
+                        }
+                    });
+                    
+                    play();
+                }
+            }
+
+            // Play/pause toggle
+            function togglePlay() {
+                if (isPlaying) {
+                    pause();
+                } else {
+                    play();
+                }
+            }
+
+            // Play
+            function play() {
+                isPlaying = true;
+                audio.play();
+                playBtn.textContent = '⏸';
+            }
+
+            // Pause
+            function pause() {
+                isPlaying = false;
+                audio.pause();
+                playBtn.textContent = '▶';
+            }
+
+            // Next song
+            function nextSong() {
+                currentSongIndex = (currentSongIndex + 1) % playlist.length;
+                playSong(currentSongIndex);
+            }
+
+            // Previous song
+            function prevSong() {
+                currentSongIndex = (currentSongIndex - 1 + playlist.length) % playlist.length;
+                playSong(currentSongIndex);
+            }
+
+            // Update progress bar
+            function updateProgress(e) {
+                const { duration, currentTime } = e.srcElement;
+                const progressPercent = (currentTime / duration) * 100;
+                progress.style.width = `${progressPercent}%`;
+                
+                // Update time display
+                const durationMinutes = Math.floor(duration / 60);
+                let durationSeconds = Math.floor(duration % 60);
+                if (durationSeconds < 10) {
+                    durationSeconds = `0${durationSeconds}`;
+                }
+                
+                // Avoid NaN display
+                if (durationSeconds) {
+                    durationEl.textContent = `${durationMinutes}:${durationSeconds}`;
+                }
+                
+                const currentMinutes = Math.floor(currentTime / 60);
+                let currentSeconds = Math.floor(currentTime % 60);
+                if (currentSeconds < 10) {
+                    currentSeconds = `0${currentSeconds}`;
+                }
+                currentTimeEl.textContent = `${currentMinutes}:${currentSeconds}`;
+            }
+
+            // Set progress when clicked on progress bar
+            function setProgress(e) {
+                const width = this.clientWidth;
+                const clickX = e.offsetX;
+                const duration = audio.duration;
+                audio.currentTime = (clickX / width) * duration;
+            }
+
+            // Event listeners
+            playBtn.addEventListener('click', togglePlay);
+            prevBtn.addEventListener('click', prevSong);
+            nextBtn.addEventListener('click', nextSong);
+            audio.addEventListener('timeupdate', updateProgress);
+            audio.addEventListener('ended', nextSong);
+            progressBar.addEventListener('click', setProgress);
+
+            // Initialize
+            initPlaylist();
+            playSong(0);
+        });
+    </script>
+</body>
+</html>
