@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDE Utilities</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom KDE light theme colors */
+        :root {
+            --primary: #2980b9;
+            --primary-light: #3498db;
+            --background: #f5f5f5;
+            --panel: #ffffff;
+            --text: #333333;
+            --text-secondary: #666666;
+            --border: #e0e0e0;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --hover: #f0f0f0;
+        }
+
+        /* Analog clock styles */
+        .clock-face {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: var(--panel);
+            border: 8px solid var(--primary);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .clock-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .clock-hour {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 50px;
+            background: var(--text);
+            transform-origin: bottom center;
+            border-radius: 4px;
+            transform: translate(-50%, -100%) rotate(0deg);
+        }
+
+        .clock-minute {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 3px;
+            height: 70px;
+            background: var(--text);
+            transform-origin: bottom center;
+            border-radius: 4px;
+            transform: translate(-50%, -100%) rotate(0deg);
+        }
+
+        .clock-second {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 90px;
+            background: var(--primary-light);
+            transform-origin: bottom center;
+            border-radius: 4px;
+            transform: translate(-50%, -100%) rotate(0deg);
+        }
+
+        /* Drag and drop area */
+        .drop-area {
+            border: 2px dashed var(--primary);
+            transition: all 0.3s;
+        }
+
+        .drop-area.highlight {
+            border-color: var(--primary-light);
+            background-color: rgba(41, 128, 185, 0.05);
+        }
+
+        /* KDE window controls */
+        .window-btn {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-left: 8px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .window-btn.close {
+            background-color: #ff5f56;
+        }
+
+        .window-btn.minimize {
+            background-color: #ffbd2e;
+        }
+
+        .window-btn.maximize {
+            background-color: #27c93f;
+        }
+    </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--text)] min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- Window controls -->
+        <div class="flex justify-end mb-2">
+            <button class="window-btn close"></button>
+            <button class="window-btn minimize"></button>
+            <button class="window-btn maximize"></button>
+        </div>
+
+        <!-- Header -->
+        <div class="bg-[var(--primary)] text-white p-4 rounded-t-lg shadow">
+            <h1 class="text-2xl font-bold text-center">KDE Utilities</h1>
+        </div>
+
+        <!-- Main content -->
+        <div class="bg-[var(--panel)] p-6 rounded-b-lg shadow-lg grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Paste/Upload/Drag to Print Section -->
+            <div class="border border-[var(--border)] rounded-lg p-4">
+                <h2 class="text-xl font-semibold mb-4 text-[var(--primary)]">Text/File Tools</h2>
+                
+                <div class="space-y-4">
+                    <!-- Text input -->
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Paste text:</label>
+                        <textarea id="textInput" class="w-full p-2 border border-[var(--border)] rounded focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent" rows="4" placeholder="Paste your text here..."></textarea>
+                    </div>
+                    
+                    <!-- File upload -->
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Upload file:</label>
+                        <input type="file" id="fileUpload" class="block w-full text-sm text-[var(--text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[var(--primary)] file:text-white hover:file:bg-[var(--primary-light)]">
+                    </div>
+                    
+                    <!-- Drag and drop -->
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Or drag & drop:</label>
+                        <div id="dropArea" class="drop-area p-8 text-center rounded-lg cursor-pointer">
+                            <p class="text-[var(--text-secondary)]">Drag and drop files here</p>
+                            <p class="text-xs text-[var(--text-secondary)] mt-2">Supports text files, images, and PDFs</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Print button -->
+                    <button id="printBtn" class="w-full py-2 px-4 bg-[var(--primary)] text-white rounded hover:bg-[var(--primary-light)] transition">Print Content</button>
+                    
+                    <!-- Output -->
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium mb-1">Output:</label>
+                        <div id="outputContent" class="w-full p-2 border border-[var(--border)] rounded min-h-20 max-h-40 overflow-auto">
+                            <p class="text-[var(--text-secondary)] text-center py-8">Your content will appear here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clocks Section -->
+            <div class="border border-[var(--border)] rounded-lg p-4">
+                <h2 class="text-xl font-semibold mb-4 text-[var(--primary)]">Time Utilities</h2>
+                
+                <div class="space-y-6">
+                    <!-- Analog Clock -->
+                    <div class="flex flex-col items-center">
+                        <h3 class="text-lg font-medium mb-2">Analog Clock</h3>
+                        <div class="clock-face">
+                            <div class="clock-hour" id="hourHand"></div>
+                            <div class="clock-minute" id="minuteHand"></div>
+                            <div class="clock-second" id="secondHand"></div>
+                            <div class="clock-center"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Digital Clock -->
+                    <div class="text-center">
+                        <h3 class="text-lg font-medium mb-2">Digital Clock</h3>
+                        <div id="digitalClock" class="text-3xl font-mono font-bold text-[var(--primary)]"></div>
+                        <div id="digitalDate" class="text-sm text-[var(--text-secondary)] mt-1"></div>
+                    </div>
+                    
+                    <!-- Countdown Timer -->
+                    <div>
+                        <h3 class="text-lg font-medium mb-2">Countdown Timer</h3>
+                        <div class="flex items-center space-x-2 mb-2">
+                            <input type="number" id="minutesInput" min="0" max="59" class="w-16 p-2 border border-[var(--border)] rounded text-center" placeholder="Min">
+                            <span>:</span>
+                            <input type="number" id="secondsInput" min="0" max="59" class="w-16 p-2 border border-[var(--border)] rounded text-center" placeholder="Sec">
+                            <button id="startTimerBtn" class="py-1 px-3 bg-[var(--primary)] text-white rounded hover:bg-[var(--primary-light)]">Start</button>
+                        </div>
+                        <div id="timerDisplay" class="text-2xl font-mono text-center py-2">00:00</div>
+                        <div class="flex justify-center space-x-2">
+                            <button id="pauseTimerBtn" class="py-1 px-3 bg-gray-300 rounded hover:bg-gray-400" disabled>Pause</button>
+                            <button id="resetTimerBtn" class="py-1 px-3 bg-gray-300 rounded hover:bg-gray-400" disabled>Reset</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Stopwatch -->
+                    <div>
+                        <h3 class="text-lg font-medium mb-2">Stopwatch</h3>
+                        <div id="stopwatchDisplay" class="text-2xl font-mono text-center py-2">00:00:00</div>
+                        <div class="flex justify-center space-x-2">
+                            <button id="startStopwatchBtn" class="py-1 px-3 bg-[var(--primary)] text-white rounded hover:bg-[var(--primary-light)]">Start</button>
+                            <button id="pauseStopwatchBtn" class="py-1 px-3 bg-gray-300 rounded hover:bg-gray-400" disabled>Pause</button>
+                            <button id="resetStopwatchBtn" class="py-1 px-3 bg-gray-300 rounded hover:bg-gray-400" disabled>Reset</button>
+                            <button id="lapStopwatchBtn" class="py-1 px-3 bg-gray-300 rounded hover:bg-gray-400" disabled>Lap</button>
+                        </div>
+                        <div id="lapTimes" class="mt-2 max-h-20 overflow-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. Paste/Upload/Drag to Print functionality
+            const textInput = document.getElementById('textInput');
+            const fileUpload = document.getElementById('fileUpload');
+            const dropArea = document.getElementById('dropArea');
+            const printBtn = document.getElementById('printBtn');
+            const outputContent = document.getElementById('outputContent');
+
+            // Handle text input
+            textInput.addEventListener('input', function() {
+                outputContent.textContent = this.value;
+            });
+
+            // Handle file upload
+            fileUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    handleFile(file);
+                }
+            });
+
+            // Handle drag and drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                dropArea.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                dropArea.classList.remove('highlight');
+            }
+
+            dropArea.addEventListener('drop', function(e) {
+                const dt = e.dataTransfer;
+                const file = dt.files[0];
+                if (file) {
+                    handleFile(file);
+                }
+            });
+
+            function handleFile(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (file.type.startsWith('image/')) {
+                        outputContent.innerHTML = `<img src="${e.target.result}" alt="${file.name}" class="max-w-full h-auto">`;
+                    } else if (file.type === 'application/pdf') {
+                        outputContent.innerHTML = `<embed src="${e.target.result}" type="application/pdf" width="100%" height="300px">`;
+                    } else {
+                        outputContent.textContent = e.target.result;
+                    }
+                };
+                if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+                    reader.readAsDataURL(file);
+                } else {
+                    reader.readAsText(file);
+                }
+            }
+
+            // Print functionality
+            printBtn.addEventListener('click', function() {
+                const content = outputContent.innerHTML;
+                if (content.trim() === '') {
+                    alert('No content to print!');
+                    return;
+                }
+
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Print</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 20px; }
+                            img { max-width: 100%; height: auto; }
+                        </style>
+                    </head>
+                    <body>
+                        ${content}
+                        <script>
+                            window.onload = function() {
+                                setTimeout(function() {
+                                    window.print();
+                                    window.close();
+                                }, 200);
+                            };
+                        </script>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            });
+
+            // 2. Analog Clock
+            function updateAnalogClock() {
+                const now = new Date();
+                const hours = now.getHours() % 12;
+                const minutes = now.getMinutes();
+                const seconds = now.getSeconds();
+                
+                const hourDegrees = (hours * 30) + (minutes * 0.5);
+                const minuteDegrees = minutes * 6;
+                const secondDegrees = seconds * 6;
+                
+                document.getElementById('hourHand').style.transform = `translate(-50%, -100%) rotate(${hourDegrees}deg)`;
+                document.getElementById('minuteHand').style.transform = `translate(-50%, -100%) rotate(${minuteDegrees}deg)`;
+                document.getElementById('secondHand').style.transform = `translate(-50%, -100%) rotate(${secondDegrees}deg)`;
+            }
+
+            setInterval(updateAnalogClock, 1000);
+            updateAnalogClock();
+
+            // 3. Digital Clock
+            function updateDigitalClock() {
+                const now = new Date();
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const seconds = now.getSeconds().toString().padStart(2, '0');
+                
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                
+                document.getElementById('digitalClock').textContent = `${hours}:${minutes}:${seconds}`;
+                document.getElementById('digitalDate').textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+            }
+
+            setInterval(updateDigitalClock, 1000);
+            updateDigitalClock();
+
+            // 4. Countdown Timer
+            const minutesInput = document.getElementById('minutesInput');
+            const secondsInput = document.getElementById('secondsInput');
+            const startTimerBtn = document.getElementById('startTimerBtn');
+            const pauseTimerBtn = document.getElementById('pauseTimerBtn');
+            const resetTimerBtn = document.getElementById('resetTimerBtn');
+            const timerDisplay = document.getElementById('timerDisplay');
+
+            let timerInterval;
+            let totalSeconds = 0;
+            let isTimerRunning = false;
+            let isTimerPaused = false;
+            let remainingSeconds = 0;
+
+            startTimerBtn.addEventListener('click', function() {
+                if (isTimerRunning && !isTimerPaused) return;
+                
+                if (isTimerPaused) {
+                    totalSeconds = remainingSeconds;
+                    isTimerPaused = false;
+                } else {
+                    const minutes = parseInt(minutesInput.value) || 0;
+                    const seconds = parseInt(secondsInput.value) || 0;
+                    totalSeconds = minutes * 60 + seconds;
+                    remainingSeconds = totalSeconds;
+                }
+                
+                if (totalSeconds <= 0) {
+                    alert('Please enter a valid time!');
+                    return;
+                }
+                
+                updateTimerDisplay();
+                
+                if (!isTimerRunning || isTimerPaused) {
+                    timerInterval = setInterval(runTimer, 1000);
+                    isTimerRunning = true;
+                    isTimerPaused = false;
+                    
+                    startTimerBtn.disabled = true;
+                    pauseTimerBtn.disabled = false;
+                    resetTimerBtn.disabled = false;
+                    
+                    minutesInput.disabled = true;
+                    secondsInput.disabled = true;
+                }
+            });
+
+            pauseTimerBtn.addEventListener('click', function() {
+                if (!isTimerRunning) return;
+                
+                clearInterval(timerInterval);
+                isTimerPaused = true;
+                isTimerRunning = false;
+                
+                startTimerBtn.disabled = false;
+                pauseTimerBtn.disabled = true;
+            });
+
+            resetTimerBtn.addEventListener('click', function() {
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+                isTimerPaused = false;
+                totalSeconds = 0;
+                remainingSeconds = 0;
+                
+                timerDisplay.textContent = '00:00';
+                
+                startTimerBtn.disabled = false;
+                pauseTimerBtn.disabled = true;
+                resetTimerBtn.disabled = true;
+                
+                minutesInput.disabled = false;
+                secondsInput.disabled = false;
+                
+                minutesInput.value = '';
+                secondsInput.value = '';
+            });
+
+            function runTimer() {
+                if (remainingSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    isTimerRunning = false;
+                    timerDisplay.textContent = '00:00';
+                    alert('Timer finished!');
+                    
+                    startTimerBtn.disabled = false;
+                    pauseTimerBtn.disabled = true;
+                    resetTimerBtn.disabled = false;
+                    
+                    minutesInput.disabled = false;
+                    secondsInput.disabled = false;
+                    return;
+                }
+                
+                remainingSeconds--;
+                updateTimerDisplay();
+            }
+
+            function updateTimerDisplay() {
+                const minutes = Math.floor(remainingSeconds / 60);
+                const seconds = remainingSeconds % 60;
+                
+                timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            // 5. Stopwatch
+            const startStopwatchBtn = document.getElementById('startStopwatchBtn');
+            const pauseStopwatchBtn = document.getElementById('pauseStopwatchBtn');
+            const resetStopwatchBtn = document.getElementById('resetStopwatchBtn');
+            const lapStopwatchBtn = document.getElementById('lapStopwatchBtn');
+            const stopwatchDisplay = document.getElementById('stopwatchDisplay');
+            const lapTimes = document.getElementById('lapTimes');
+
+            let stopwatchInterval;
+            let stopwatchTime = 0;
+            let isStopwatchRunning = false;
+
+            startStopwatchBtn.addEventListener('click', function() {
+                if (isStopwatchRunning) return;
+                
+                isStopwatchRunning = true;
+                stopwatchInterval = setInterval(runStopwatch, 10);
+                
+                startStopwatchBtn.disabled = true;
+                pauseStopwatchBtn.disabled = false;
+                resetStopwatchBtn.disabled = false;
+                lapStopwatchBtn.disabled = false;
+            });
+
+            pauseStopwatchBtn.addEventListener('click', function() {
+                if (!isStopwatchRunning) return;
+                
+                clearInterval(stopwatchInterval);
+                isStopwatchRunning = false;
+                
+                startStopwatchBtn.disabled = false;
+                pauseStopwatchBtn.disabled = true;
+            });
+
+            resetStopwatchBtn.addEventListener('click', function() {
+                clearInterval(stopwatchInterval);
+                isStopwatchRunning = false;
+                stopwatchTime = 0;
+                
+                stopwatchDisplay.textContent = '00:00:00';
+                lapTimes.innerHTML = '';
+                
+                startStopwatchBtn.disabled = false;
+                pauseStopwatchBtn.disabled = true;
+                resetStopwatchBtn.disabled = true;
+                lapStopwatchBtn.disabled = true;
+            });
+
+            lapStopwatchBtn.addEventListener('click', function() {
+                if (!isStopwatchRunning) return;
+                
+                const lapTime = formatStopwatchTime(stopwatchTime);
+                const lapItem = document.createElement('div');
+                lapItem.className = 'text-sm py-1 border-b border-[var(--border)]';
+                lapItem.textContent = `Lap ${lapTimes.children.length + 1}: ${lapTime}`;
+                lapTimes.prepend(lapItem);
+            });
+
+            function runStopwatch() {
+                stopwatchTime += 10;
+                stopwatchDisplay.textContent = formatStopwatchTime(stopwatchTime);
+            }
+
+            function formatStopwatchTime(time) {
+                const hours = Math.floor(time / 3600000);
+                const minutes = Math.floor((time % 3600000) / 60000);
+                const seconds = Math.floor((time % 60000) / 1000);
+                const milliseconds = Math.floor((time % 1000) / 10);
+                
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+            }
+        });
+    </script>
+</body>
+</html>
