@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     let animationFrameId; 
 
     const R_Factor = 1.35; 
-    const G_Factor = 0.85; 
+    const G_Factor = 0.65; 
     const B_Factor = 1.35; 
 
     function logToConsole(message) {
