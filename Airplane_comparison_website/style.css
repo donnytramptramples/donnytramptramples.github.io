@@ -1,0 +1,162 @@
+/* --- KALI DARK & XFCE CORE THEME --- */
+:root {
+    --kali-blue: #0087ff;
+    --kali-bg: #1a1c1e;     
+    --kali-header: #2d3136; 
+    --kali-text: #eff0f1;   
+    --kali-border: #3f454d;
+    --input-bg: #25292d;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    background-color: #0f1112;
+    /* Using Kali 2024.2 Official Wallpaper (URL needs adjustment for live use) */
+    /* background-image: url('https://www.kali.org'); */
+    background-size: cover;
+    background-attachment: fixed;
+    color: var(--kali-text);
+    font-family: 'Inter', 'Liberation Sans', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* XFCE Top Panel Style */
+header {
+    background: var(--kali-header);
+    min-height: 35px;
+    display: flex;
+    align-items: center;
+    padding: 5px 15px;
+    border-bottom: 1px solid var(--kali-border);
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+header h1 {
+    font-size: 14px;
+    margin: 0;
+    color: var(--kali-blue);
+    font-weight: bold;
+}
+
+.controls {
+    /* This flexbox setup ensures elements are side-by-side in source order */
+    display: flex; 
+    gap: 10px;
+    margin-left: auto;
+    align-items: center;
+    /* FIX: Force horizontal layout within controls always */
+    flex-wrap: nowrap !important;
+}
+
+/* Kali UI Elements */
+input, select {
+    background: var(--input-bg);
+    color: var(--kali-text);
+    border: 1px solid var(--kali-border);
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 2px;
+}
+
+button {
+    background: var(--kali-blue);
+    border: none;
+    color: white;
+    padding: 5px 15px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 2px;
+}
+
+button:hover { background: #0076e0; }
+
+/* The Main Comparison "Window" */
+#comparison-table-container {
+    padding: 20px;
+    max-width: 1300px;
+    margin: 0 auto;
+}
+
+table {
+    width: 100%;
+    background: var(--kali-bg);
+    border: 1px solid var(--kali-border);
+    border-collapse: collapse;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+    margin-bottom: 40px;
+}
+
+th.plane-header {
+    background: var(--kali-header);
+    color: var(--kali-blue);
+    padding: 15px;
+    font-size: 1.1rem;
+    border-bottom: 3px solid var(--kali-blue);
+}
+
+td {
+    padding: 12px;
+    border: 1px solid var(--kali-border);
+    text-align: center;
+}
+
+.category-col {
+    background: #212529;
+    color: #888;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 1px;
+    width: 20%;
+}
+
+.vs-cell { font-style: italic; font-weight: bold; color: var(--kali-border); }
+
+/* --- RESPONSIVE LOGIC --- */
+
+/* For Tablets/Smaller Laptops */
+@media (max-width: 1024px) {
+    header { height: auto; flex-direction: column; padding: 10px; }
+    /* This allows stacking on smaller screens if they run out of space */
+    .controls { flex-wrap: wrap !important; margin-top: 10px; } 
+    .controls select, .controls input, .controls button { flex-grow: 1; }
+}
+
+/* For Mobile Phones */
+@media (max-width: 650px) {
+    table, thead, tbody, th, td, tr { display: block; }
+    
+    .vs-cell { display: none; } /* Hide VS row on mobile */
+
+    th.plane-header {
+        text-align: center;
+        background: #111;
+    }
+
+    .category-col {
+        width: 100% !important;
+        background: var(--kali-blue);
+        color: #fff;
+        padding: 4px;
+    }
+
+    td {
+        border: none;
+        border-bottom: 1px solid var(--kali-border);
+        padding: 10px;
+        text-align: left;
+    }
+
+    /* Logic to show which plane is which in the vertical stack */
+    td:nth-of-type(1):before { content: "Plane 1: "; color: var(--kali-blue); font-weight: bold; }
+    td:nth-of-type(3):before { content: "Plane 2: "; color: var(--kali-blue); font-weight: bold; }
+    
+    input, select { width: 100%; }
+}
