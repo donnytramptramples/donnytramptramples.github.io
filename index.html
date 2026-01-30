@@ -1,33 +1,126 @@
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kali Project Workspace</title>
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
+    
+    <style>
+        :root {
+            --kali-bg: #0f111a;
+            --xfce-title: #2a2e38;
+            --kali-blue: #00bcd4;
+            --terminal-text: #d1d5db;
+        }
 
-    <a href="https://donnytramptramples.github.io/camera-object-identification/" 
-       class="project-card button-light dark:button-dark rounded-lg py-4 px-6 text-center font-medium transition-all duration-300 hover:opacity-90 fade-in" 
-       style="animation-delay: 0.2s;">
-        <i class="fas fa-camera"></i>
-        Camera Object ID
-    </a>
+        body {
+            background-color: var(--kali-bg);
+            color: var(--terminal-text);
+            font-family: 'Fira Code', monospace;
+            padding: 2rem;
+        }
 
-    <a href="https://donnytramptramples.github.io/MusicPlayerV1/index.html" 
-       class="project-card button-light dark:button-dark rounded-lg py-4 px-6 text-center font-medium transition-all duration-300 hover:opacity-90 fade-in" 
-       style="animation-delay: 0.3s;">
-        <i class="fas fa-music"></i>
-        MusicPlayerV1
-    </a>
+        /* XFCE Window Decoration */
+        .window-container {
+            border: 1px solid #333;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 1000px;
+            margin: 0 auto;
+        }
 
-    <!-- New Button: Airplane Comparison Website -->
-    <a href="https://donnytramptramples.github.io/Airplane_comparison_website" 
-       class="project-card button-light dark:button-dark rounded-lg py-4 px-6 text-center font-medium transition-all duration-300 hover:opacity-90 fade-in" 
-       style="animation-delay: 0.35s;">
-        <i class="fas fa-plane"></i>
-        Airplane Comparison Website
-    </a>
-    <!-- End new button -->
+        .title-bar {
+            background: var(--xfce-title);
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #444;
+        }
 
-    <a href="https://donnytramptramples.github.io/photo_to_pixel_video_converter/index.html" 
-       class="project-card button-light dark:button-dark rounded-lg py-4 px-6 text-center font-medium transition-all duration-300 hover:opacity-90 fade-in" 
-       style="animation-delay: 0.4s;">
-        <i class="fas fa-tv"></i>
-        Video to OLED Video Sim
-    </a>
+        .window-controls span {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 6px;
+            background: #444;
+        }
 
-    <a href="https://donnytramp
+        /* Project Card Kali Theme */
+        .project-card {
+            background: #1e222c !important;
+            border: 1px solid #2d3343;
+            color: var(--kali-blue) !important;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .project-card:hover {
+            border-color: var(--kali-blue);
+            background: #252a37 !important;
+            box-shadow: 0 0 15px rgba(0, 188, 212, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .terminal-header {
+            color: #4ade80; /* Terminal Green */
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="window-container">
+        <!-- XFCE Title Bar -->
+        <div class="title-bar">
+            <div class="flex items-center gap-2">
+                <i class="fab fa-linux text-cyan-400"></i>
+                <span class="text-sm font-bold text-gray-300">donny@kali: ~/projects</span>
+            </div>
+            <div class="window-controls">
+                <span></span><span></span><span style="background:#ff5f56"></span>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="p-8 bg-[#161922]">
+            <h1 class="terminal-header text-xl font-bold">
+                root@kali:~$ ./list_repositories.sh
+            </h1>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <!-- Original Buttons with updated classes -->
+                <a href="https://donnytramptramples.github.io/camera-object-identification/" 
+                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
+                    <i class="fas fa-camera mr-2"></i> Camera Object ID
+                </a>
+
+                <a href="https://donnytramptramples.github.io/MusicPlayerV1/index.html" 
+                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
+                    <i class="fas fa-music mr-2"></i> MusicPlayerV1
+                </a>
+
+                <a href="https://donnytramptramples.github.io/Airplane_comparison_website" 
+                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
+                    <i class="fas fa-plane mr-2"></i> Airplane Comparison Website
+                </a>
+
+                <a href="https://donnytramptramples.github.io/photo_to_pixel_video_converter/index.html" 
+                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
+                    <i class="fas fa-tv mr-2"></i> Video to OLED Sim
+                </a>
+
+                <a href="https://donnytramptramples.github.io/MusicPlayerV2/index.html" 
+                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
+                    <i class="fas fa-music mr-2"></i> MusicPlayerV2
+                </a>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
