@@ -3,124 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kali Project Workspace</title>
+    <title>Kali Project Hub</title>
     <!-- Tailwind CSS & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
     
     <style>
+        @import url('https://fonts.googleapis.com');
+
         :root {
             --kali-bg: #0f111a;
-            --xfce-title: #2a2e38;
-            --kali-blue: #00bcd4;
-            --terminal-text: #d1d5db;
+            --kali-surface: #161922;
+            --kali-accent: #00bcd4; /* Kali Blue */
+            --kali-text: #d1d5db;
+            --kali-border: #2d3343;
         }
 
         body {
             background-color: var(--kali-bg);
-            color: var(--terminal-text);
-            font-family: 'Fira Code', monospace;
-            padding: 2rem;
-        }
-
-        /* XFCE Window Decoration */
-        .window-container {
-            border: 1px solid #333;
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-
-        .title-bar {
-            background: var(--xfce-title);
-            padding: 8px 15px;
+            color: var(--kali-text);
+            font-family: 'Fira Sans', sans-serif;
+            margin: 0;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Nav Bar - XFCE Style */
+        nav {
+            background-color: #1a1e29;
+            border-bottom: 2px solid var(--kali-accent);
+            padding: 1rem 2rem;
+            display: flex;
             align-items: center;
-            border-bottom: 1px solid #444;
+            justify-content: space-between;
         }
 
-        .window-controls span {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-left: 6px;
-            background: #444;
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(180deg, #1a1e29 0%, var(--kali-bg) 100%);
+            padding: 3rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid var(--kali-border);
         }
 
-        /* Project Card Kali Theme */
+        /* Project Grid Container */
+        .content-wrapper {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            width: 100%;
+        }
+
+        /* Project Card Styling */
         .project-card {
-            background: #1e222c !important;
-            border: 1px solid #2d3343;
-            color: var(--kali-blue) !important;
-            transition: all 0.2s ease-in-out;
+            background: var(--kali-surface);
+            border: 1px solid var(--kali-border);
+            border-left: 4px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
         }
 
         .project-card:hover {
-            border-color: var(--kali-blue);
-            background: #252a37 !important;
-            box-shadow: 0 0 15px rgba(0, 188, 212, 0.2);
-            transform: translateY(-2px);
+            border-left: 4px solid var(--kali-accent);
+            background: #1e2330;
+            transform: translateX(5px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
         }
 
-        .terminal-header {
-            color: #4ade80; /* Terminal Green */
-            margin-bottom: 1rem;
+        .project-card i {
+            color: var(--kali-accent);
+            font-size: 1.5rem;
+            margin-right: 1rem;
+        }
+
+        .section-title {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--kali-accent);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::after {
+            content: "";
+            height: 1px;
+            background: var(--kali-border);
+            flex-grow: 1;
         }
     </style>
 </head>
 <body>
 
-    <div class="window-container">
-        <!-- XFCE Title Bar -->
-        <div class="title-bar">
-            <div class="flex items-center gap-2">
-                <i class="fab fa-linux text-cyan-400"></i>
-                <span class="text-sm font-bold text-gray-300">donny@kali: ~/projects</span>
-            </div>
-            <div class="window-controls">
-                <span></span><span></span><span style="background:#ff5f56"></span>
-            </div>
+    <!-- XFCE-style Top Bar -->
+    <nav>
+        <div class="flex items-center gap-3">
+            <i class="fab fa-linux text-2xl" style="color: var(--kali-accent);"></i>
+            <span class="font-bold tracking-tight text-gray-100">KALI//SYSTEM_WORKS</span>
         </div>
-
-        <!-- Main Content Area -->
-        <div class="p-8 bg-[#161922]">
-            <h1 class="terminal-header text-xl font-bold">
-                root@kali:~$ ./list_repositories.sh
-            </h1>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <!-- Original Buttons with updated classes -->
-                <a href="https://donnytramptramples.github.io/camera-object-identification/" 
-                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
-                    <i class="fas fa-camera mr-2"></i> Camera Object ID
-                </a>
-
-                <a href="https://donnytramptramples.github.io/MusicPlayerV1/index.html" 
-                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
-                    <i class="fas fa-music mr-2"></i> MusicPlayerV1
-                </a>
-
-                <a href="https://donnytramptramples.github.io/Airplane_comparison_website" 
-                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
-                    <i class="fas fa-plane mr-2"></i> Airplane Comparison Website
-                </a>
-
-                <a href="https://donnytramptramples.github.io/photo_to_pixel_video_converter/index.html" 
-                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
-                    <i class="fas fa-tv mr-2"></i> Video to OLED Sim
-                </a>
-
-                <a href="https://donnytramptramples.github.io/MusicPlayerV2/index.html" 
-                   class="project-card rounded-lg py-4 px-6 text-center font-medium fade-in">
-                    <i class="fas fa-music mr-2"></i> MusicPlayerV2
-                </a>
-            </div>
+        <div class="hidden md:flex gap-6 text-sm font-medium">
+            <a href="#" class="hover:text-[var(--kali-accent)] transition">Home</a>
+            <a href="#" class="hover:text-[var(--kali-accent)] transition">Repositories</a>
+            <a href="#" class="hover:text-[var(--kali-accent)] transition">About</a>
         </div>
-    </div>
+    </nav>
+
+    <!-- Header Section -->
+    <header class="hero">
+        <h1 class="text-4xl font-bold text-white mb-2">Project Workspace</h1>
+        <p class="text-gray-400 max-w-md mx-auto">A collection of web-based tools and applications developed on Kali Linux.</p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="content-wrapper">
+        <div class="section-title">Active Deployments</div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Camera Project -->
+            <a href="https://donnytramptramples.github.io/camera-object-identification/" 
+               class="project-card rounded-md py-6 px-8 flex items-center">
+                <i class="fas fa-camera"></i>
+                <div>
+                    <div class="text-white font-semibold">Camera Object ID</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-widest mt-1">Vision / AI</div>
+                </div>
+            </a>
+
+            <!-- Music V1 -->
+            <a href="https://donnytramptramples.github.io/MusicPlayerV1/index.html" 
+               class="project-card rounded-md py-6 px-8 flex items-center">
+                <i class="fas fa-music"></i>
+                <div>
+                    <div class="text-white font-semibold">MusicPlayer V1</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-widest mt-1">Audio / Core</div>
+                </div>
+            </a>
+
+            <!-- Airplane -->
+            <a href="https://donnytramptramples.github.io/Airplane_comparison_website" 
+               class="project-card rounded-md py-6 px-8 flex items-center">
+                <i class="fas fa-plane"></i>
+                <div>
+                    <div class="text-white font-semibold">Airplane Comparison</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-widest mt-1">Database / UI</div>
+                </div>
+            </a>
+
+            <!-- Video/OLED -->
+            <a href="https://donnytramptramples.github.io/photo_to_pixel_video_converter/index.html" 
+               class="project-card rounded-md py-6 px-8 flex items-center">
+                <i class="fas fa-microchip"></i>
+                <div>
+                    <div class="text-white font-semibold">Video to OLED Sim</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-widest mt-1">Processing / Video</div>
+                </div>
+            </a>
+
+            <!-- Touhou -->
+            <a href="https://donnytramptramples.github.io/TouhoucalendarV2/index.html" 
+               class="project-card rounded-md py-6 px-8 flex items-center">
+                <i class="fas fa-calendar-alt"></i>
+                <div>
+                    <div class="text-white font-semibold">Touhou Calendar</div>
+                    <div class="text-xs text-gray-500 uppercase tracking-widest mt-1">Utility / JS</div>
+                </div>
+            </a>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-8 text-center text-xs text-gray-600 border-t border-[var(--kali-border)]">
+        &copy; 2024 donny@kali-rolling | System Environment: XFCE 4.18
+    </footer>
 
 </body>
 </html>
