@@ -624,6 +624,40 @@ window.planesRegistry.push({
 // A350 FAMILY
 // =======================
 
+window.planesRegistry = window.planesRegistry || [];
+
+/* ============================
+   AIRBUS A350-800  (CANCELLED VARIANT)
+   ============================ */
+
+window.planesRegistry.push({
+    model: "Airbus A350-800",
+    manufacturer: "Airbus",
+    topSpeed: 945,
+    cruiseSpeed: 903,
+    fuelCapacityL: 138000,
+    burnRateKgHr: 5600,
+    fuelDensity: 0.804,
+    thrustPerEngineLb: 84000,
+    totalThrustLb: 168000,
+    powerToLift: 0.34,
+    cabinDim: "60.45m x 5.61m",
+    maxSeatingEcon: 276,
+    fourClassCap: "246 (F:8, B:30, PE:38, E:170)",
+    dragCoefficient: 0.022,
+    startupNoise: 80,
+    cruiseNoise: 63,
+    unitsSold: 0,
+    materials: "Composite fuselage & wing, carbon fibre structure",
+    engineOptions: [
+        "Rolls‑Royce Trent XWB‑75",
+        "Rolls‑Royce Trent XWB‑79"    // family-compatible engines
+    ],
+    knownFor: "Shortest A350 XWB variant; programme cancelled in favour of A330neo.",
+    pilotQuote: "Would have shared handling characteristics with the A350‑900 — quiet and efficient.",
+    pilotExperience: 9.1
+});
+
 // Airbus A350-900
 window.planesRegistry.push({
     model: "Airbus A350-900",
