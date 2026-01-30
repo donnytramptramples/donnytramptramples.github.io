@@ -6,40 +6,64 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
     <!-- XFCE Top Panel -->
     <header>
         <h1>AeroCompare v2026.4</h1>
+
+        <!-- Controls MUST be inline-block for Kindle -->
         <div class="controls">
+
             <!-- Two plane selectors side-by-side -->
             <select id="plane1"></select>
             <select id="plane2"></select>
+
             <input type="number" id="distance" placeholder="Distance (km)">
             <button onclick="comparePlanes()">Compare</button>
+
         </div>
     </header>
 
-    <!-- Hidden by default until comparison runs -->
-    <div id="comparison-table-container" style="display: none;">
-        <!-- Main comparison renders here -->
+
+    <!-- ============================= -->
+    <!-- TABLES MUST BE IN KINDLE ROW -->
+    <!-- ============================= -->
+
+    <div id="kindle-row">
+
+        <!-- LEFT COLUMN (Comparison Table) -->
+        <div class="kindle-col">
+            <div id="comparison-table-container" style="display:none;">
+                <!-- JS inserts comparison table here -->
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN (Noise Table) -->
+        <div class="kindle-col">
+            <div id="noise-table-container" style="display:none;">
+                <!-- JS inserts noise table here -->
+            </div>
+        </div>
+
     </div>
 
-    <!-- Hidden by default until comparison runs -->
-    <div id="noise-table-container" style="display: none;">
-        <!-- Global noise table renders here -->
-    </div>
 
-    <!-- Modular Aircraft Data -->
+    <!-- ============================= -->
+    <!-- Plane Database Scripts -->
+    <!-- ============================= -->
     <script src="airbus.js"></script>
     <script src="boeing.js"></script>
-	<script src="xi'an.js"></script>
-	<script src="comac.js"></script>
-	<script src="tupolev.js"></script>
-	<script src="embraer.js"></script>
-	<script src="ilyushin.js"></script>
-	<script src="bombardier.js"></script>
-	<script src="atr.js"></script>
-	<script src="antonov.js"></script>
+    <script src="xi'an.js"></script>
+    <script src="comac.js"></script>
+    <script src="tupolev.js"></script>
+    <script src="embraer.js"></script>
+    <script src="ilyushin.js"></script>
+    <script src="bombardier.js"></script>
+    <script src="atr.js"></script>
+    <script src="antonov.js"></script>
+
     <!-- Core Application -->
     <script src="app.js"></script>
+
 </body>
 </html>
