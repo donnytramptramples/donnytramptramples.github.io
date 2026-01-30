@@ -1,16 +1,17 @@
-/* --- KALI DARK & XFCE THEME (Kindle-Compatible) --- */
+/* --- KALI DARK + XFCE THEME (FULL KINDLE-COMPATIBLE) --- */
 
+/* Base colours (variables removed for Kindle compatibility) */
 body {
     background-color: #0f1112;
     background-size: cover;
-    background-attachment: scroll; /* Kindle-safe */
+    background-attachment: scroll;
     color: #eff0f1;
     font-family: 'Inter', 'Liberation Sans', sans-serif;
     margin: 0;
     padding: 0;
 }
 
-/* XFCE Top Panel Style */
+/* ================= HEADER (XFCE-Style Panel) ================= */
 header {
     background: #2d3136;
     min-height: 35px;
@@ -18,7 +19,7 @@ header {
     border-bottom: 1px solid #3f454d;
     font-size: 13px;
 
-    /* Removed flex, replaced with Kindle-safe layout */
+    /* Kindle-safe layout */
     overflow: hidden;
 }
 
@@ -30,10 +31,12 @@ header h1 {
     float: left;
 }
 
-/* === CONTROL BAR (REPLACES FLEXBOX) === */
+/* TOP CONTROLS (Side by Side on Kindle) */
 .controls {
+    display: inline-block;
     float: right;
     white-space: nowrap;
+    margin-top: 2px;
 }
 
 .controls select,
@@ -44,7 +47,14 @@ header h1 {
     vertical-align: middle;
 }
 
-/* Kali UI Inputs */
+/* Clear floats in header */
+header:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+/* ================= INPUTS & BUTTONS ================= */
 input, select {
     background: #25292d;
     color: #eff0f1;
@@ -64,18 +74,22 @@ button {
     font-weight: 600;
     border-radius: 2px;
 }
-button:hover { background: #0076e0; }
 
-/* Main comparison area */
-#comparison-table-container {
+button:hover {
+    background: #0076e0;
+}
+
+/* ================= MAIN CONTENT AREA ================= */
+#comparison-table-container,
+#noise-table-container {
     padding: 20px;
-    max-width: 1300px;
     margin: 0 auto;
 }
 
-/* TABLES */
+/* ================= TABLE STYLING ================= */
 table {
     width: 100%;
+    max-width: 100%;
     background: #1a1c1e;
     border: 1px solid #3f454d;
     border-collapse: collapse;
@@ -113,33 +127,38 @@ td {
     color: #3f454d;
 }
 
-/* ============================================================
-   KINDLE-FRIENDLY “TWO COLUMN” LAYOUT FOR SIDE-BY-SIDE TABLES
-   ============================================================ */
-
-.side-by-side-wrapper {
+/* ================= KINDLE TWO-COLUMN LAYOUT ================= */
+/* Wrap the two tables in this system */
+#kindle-row {
     text-align: center;
+    margin-top: 20px;
 }
 
-.side-box {
+.kindle-col {
     display: inline-block;
     vertical-align: top;
     width: 48%;
-    margin: 1%;
+    margin: 0 1%;
+    text-align: left; /* prevents table shrinking */
 }
 
-/* ============================================================
-   OLD MOBILE FALLBACK (Kindle ignores max-width media queries,
-   but browsers that support it get the normal stacking behaviour)
-   ============================================================ */
+/* Prevent Kindle from shrinking the inline-blocks */
+.kindle-col table {
+    width: 100%;
+}
 
+/* ================= MOBILE FALLBACK (for non-Kindle devices) ================= */
 @media (max-width: 650px) {
-    table, thead, tbody, th, td, tr { display: block; }
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
 
-    .vs-cell { display: none; }
+    .vs-cell {
+        display: none;
+    }
 
     th.plane-header {
-        text-align: center;
+        text-align: centre;
         background: #111;
     }
 
@@ -157,8 +176,24 @@ td {
         text-align: left;
     }
 
-    td:nth-of-type(1):before { content: "Plane 1: "; color: #0087ff; font-weight: bold; }
-    td:nth-of-type(3):before { content: "Plane 2: "; color: #0087ff; font-weight: bold; }
+    td:nth-of-type(1):before {
+        content: "Plane 1: ";
+        color: #0087ff;
+        font-weight: bold;
+    }
 
-    input, select { width: 100%; }
+    td:nth-of-type(3):before {
+        content: "Plane 2: ";
+        color: #0087ff;
+        font-weight: bold;
+    }
+
+    input, select {
+        width: 100%;
+    }
+
+    .kindle-col {
+        width: 100%;
+        margin-bottom: 20px;
+    }
 }
