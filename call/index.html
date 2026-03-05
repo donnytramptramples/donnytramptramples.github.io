@@ -42,6 +42,21 @@
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
         }
+        
+        @keyframes float-up {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-200px) scale(1.5);
+                opacity: 0;
+            }
+        }
+        
+        .animate-float-up {
+            animation: float-up 3s ease-out forwards;
+        }
     }
     </style>
 </head>
@@ -51,6 +66,10 @@
     <script type="text/babel" src="components/IncomingCall.js"></script>
     <script type="text/babel" src="components/VideoCall.js"></script>
     <script type="text/babel" src="components/Notification.js"></script>
+    <script type="text/babel" src="components/ChatPanel.js"></script>
+    <script type="text/babel" src="components/SettingsPanel.js"></script>
+    <script type="text/babel" src="components/ReactionOverlay.js"></script>
+    <script type="text/babel" src="components/FileTransferPanel.js"></script>
     <script type="text/babel" src="utils/peerManager.js"></script>
     <script type="text/babel" src="app.js"></script>
 </body>
