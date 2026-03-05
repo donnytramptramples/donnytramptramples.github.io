@@ -38,6 +38,8 @@ function App() {
     const [incomingCall, setIncomingCall] = React.useState(null);
     const [currentCall, setCurrentCall] = React.useState(null);
     const [notification, setNotification] = React.useState(null);
+    const [messages, setMessages] = React.useState([]);
+    const [fileTransfers, setFileTransfers] = React.useState([]);
 
     React.useEffect(() => {
       const peerInstance = initializePeer(setPeerId, setIncomingCall, setNotification);
@@ -67,9 +69,15 @@ function App() {
         {callState === 'calling' && (
           <VideoCall 
             call={currentCall}
+            messages={messages}
+            setMessages={setMessages}
+            fileTransfers={fileTransfers}
+            setFileTransfers={setFileTransfers}
             onHangup={() => {
               setCallState('idle');
               setCurrentCall(null);
+              setMessages([]);
+              setFileTransfers([]);
             }}
           />
         )}
