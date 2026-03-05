@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Video Call</title>
+    <meta name="description" content="Secure peer-to-peer video calling application">
+    <meta name="keywords" content="video call, p2p, webrtc, peer to peer">
+    <meta property="og:title" content="P2P Video Call">
+    <meta property="og:description" content="Secure peer-to-peer video calling application">
+    <meta name="twitter:title" content="P2P Video Call">
+    <meta name="twitter:description" content="Secure peer-to-peer video calling application">
+
+    <script src="https://resource.trickle.so/vendor_lib/unpkg/react@18/umd/react.production.min.js"></script>
+    <script src="https://resource.trickle.so/vendor_lib/unpkg/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://resource.trickle.so/vendor_lib/unpkg/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://resource.trickle.so/vendor_lib/unpkg/lucide-static@0.516.0/font/lucide.css" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <style type="text/tailwindcss">
+    @layer theme {
+        :root {
+            --primary-color: #3daee9;
+            --secondary-color: #eff0f1;
+            --dark-bg: #232629;
+            --dark-surface: #31363b;
+            --text-primary: #fcfcfc;
+            --text-secondary: #bdc3c7;
+        }
+    }
+
+    @layer base {
+        body {
+            @apply bg-[var(--dark-bg)] text-[var(--text-primary)] font-sans;
+        }
+    }
+
+    @layer utilities {
+        .glass-effect {
+            background: rgba(49, 54, 59, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+    }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel" src="components/IdScreen.js"></script>
+    <script type="text/babel" src="components/IncomingCall.js"></script>
+    <script type="text/babel" src="components/VideoCall.js"></script>
+    <script type="text/babel" src="components/Notification.js"></script>
+    <script type="text/babel" src="utils/peerManager.js"></script>
+    <script type="text/babel" src="app.js"></script>
+</body>
+</html>
