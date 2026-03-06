@@ -1,24 +1,23 @@
 /**
- * peermanager.js - Stealth IP-Based Firewall Bypass Version
- * Version: 7.0 (DNS-Bypass + TCP/TLS Hybrid)
- * Preserves full 160+ line structure for build compatibility.
+ * peermanager.js - Smart Hybrid P2P/Relay Edition
+ * Version: 8.5 (P2P-First with IP-Based Stealth Fallback)
  */
 
 function initializePeer(setPeerId, setIncomingCall, showNotification) {
-  // CONFIGURATION: Using direct IPs to bypass domain-level blacklisting.
-  // We use the AWS-backed IP for Metered.ca (3.7.12.152) to avoid "Error 701".
+  // CONFIGURATION: Multi-layered strategy. 
+  // We use direct IPs (3.7.12.152) to bypass school domain-level blocking.
   const config = {
-    // FORCE RELAY: Change 'all' to 'relay' if different Wi-Fi still fails.
+    // 'all' ensures it tests P2P (same Wi-Fi) first. 
+    // It will automatically move to TURN if P2P is blocked.
     iceTransportPolicy: 'all', 
     iceCandidatePoolSize: 10,
     iceServers: [
-      // --- STUN (Direct IPs to bypass school DNS blocks) ---
+      // --- LAYER 1: STUN (IP-based to avoid DNS blocking) ---
       { urls: 'stun:74.125.192.127:19302' }, // Google IP
       { urls: 'stun:172.64.155.249:3478' },  // Cloudflare IP
       { urls: 'stun:stun.nextcloud.com:443' },
 
-      // --- TURN (IP-BASED RELAY to bypass domain filters like metered.ca) ---
-      // Uses 'openrelayproject' credentials but hits the server directly via IP.
+      // --- LAYER 2: TURN (Standard UDP) ---
       { 
         urls: 'turn:3.7.12.152:80', 
         username: 'openrelayproject', 
@@ -29,13 +28,16 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
         username: 'openrelayproject', 
         credential: 'openrelayproject' 
       },
-      // TCP Fallback: Mimics standard HTTPS web traffic on port 443.
+
+      // --- LAYER 3: TURN TCP (Bypasses School UDP blocks) ---
       { 
         urls: 'turn:3.7.12.152:443?transport=tcp', 
         username: 'openrelayproject', 
         credential: 'openrelayproject' 
       },
-      // TURNS (TLS): The ultimate bypass. Wraps video in SSL encryption.
+
+      // --- LAYER 4: TURNS TLS (Stealth Mode - Mimics HTTPS) ---
+      // Wraps video in SSL to bypass Deep Packet Inspection.
       { 
         urls: 'turns:3.7.12.152:443?transport=tcp', 
         username: 'openrelayproject', 
@@ -45,36 +47,30 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
     sdpSemantics: 'unified-plan'
   };
 
-  // Generate a unique 5-character ID for the user.
   const peerId = Math.random().toString(36).substring(2, 7).toUpperCase();
   
-  // Initialize PeerJS with the stealth IP configuration.
   const peer = new Peer(peerId, { 
     config: config,
-    debug: 1 // Set to 3 for deep ICE troubleshooting.
+    debug: 1 
   });
 
-  // Event: Successfully registered with signaling server.
   peer.on('open', (id) => {
     console.log('✅ Registered Stealth ID:', id);
     setPeerId(id);
   });
 
-  // Event: Global network or signaling error.
   peer.on('error', (error) => {
-    console.error('❌ Network Link Error:', error);
-    showNotification('Link error: ' + error.type, 'error');
+    console.error('❌ PeerJS Global Error:', error);
+    showNotification('Connection error: ' + error.type, 'error');
   });
 
-  // Event: Handling an incoming call.
   peer.on('call', (call) => {
     console.log('📞 Incoming call detected from:', call.peer);
     setIncomingCall(call);
   });
 
-  // Reconnection logic for spotty school Wi-Fi.
   peer.on('disconnected', () => {
-    console.warn('⚠️ Signaling lost. Attempting reconnect...');
+    console.warn('⚠️ Disconnected. Reconnecting...');
     peer.reconnect();
   });
 
@@ -82,7 +78,7 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
 }
 
 /**
- * monitorConnection - Real-time diagnostics for connection type/signal
+ * monitorConnection - Internal diagnostics for P2P vs Relay
  */
 function monitorConnection(call, onStatusUpdate) {
   if (!onStatusUpdate) return;
@@ -94,15 +90,14 @@ function monitorConnection(call, onStatusUpdate) {
     }
     try {
       const stats = await pc.getStats();
-      let connectionType = "Checking...";
+      let connectionType = "Searching...";
       let signalScore = "Wait...";
 
       stats.forEach(report => {
-        // Detect if the connection succeeded via Relay or Direct.
         if (report.type === 'remote-candidate') {
+          // Reports "Direct (P2P)" for same wifi, "Relayed" for school bypass
           connectionType = report.candidateType === 'relay' ? "Relayed (Bypass Active)" : "Direct (P2P)";
         }
-        // Calculate signal quality via Round Trip Time.
         if (report.type === 'candidate-pair' && report.state === 'succeeded') {
           const rtt = report.currentRoundTripTime * 1000; 
           if (rtt < 150) signalScore = "Excellent";
@@ -111,73 +106,64 @@ function monitorConnection(call, onStatusUpdate) {
         }
       });
       onStatusUpdate({ type: connectionType, signal: signalScore });
-    } catch (e) { console.error("Stats error:", e); }
+    } catch (e) { console.error(e); }
   }, 2500);
 }
 
 /**
- * makeCall - Initiates outgoing call with stealth monitoring.
+ * makeCall - Initiates call and waits for P2P or Relay handshake
  */
 async function makeCall(peer, targetId, showNotification, onStatusUpdate) {
   try {
-    console.log('🚀 Initiating stealth handshake...');
     const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     const call = peer.call(targetId, localStream);
     
     return new Promise((resolve, reject) => {
       call.on('stream', (remoteStream) => {
-        console.log('💎 Connection established via stealth relay.');
+        console.log('💎 Handshake Success!');
         monitorConnection(call, onStatusUpdate);
         resolve({ call, localStream, remoteStream });
       });
 
-      call.on('error', (error) => reject(error));
+      call.on('error', (err) => reject(err));
       
       call.on('close', () => {
-        console.log('🛑 Call ended.');
         localStream.getTracks().forEach(track => track.stop());
       });
 
-      // Handshake timeout: allows for multiple TCP/TLS fallback attempts.
+      // 35s timeout to allow all STUN/TURN fallbacks to be tried
       const callTimeout = setTimeout(() => {
         call.close();
-        reject(new Error('Handshake failed. School DPI is blocking the tunnel.'));
+        reject(new Error('All connection paths (P2P & Relay) failed.'));
       }, 35000);
 
       call.on('stream', () => clearTimeout(callTimeout));
     });
   } catch (error) {
-    console.error('Hardware access error:', error);
     showNotification('Camera access denied.', 'error');
     throw error;
   }
 }
 
 /**
- * answerCall - Processes and responds to a call.
+ * answerCall - Responds to call
  */
 async function answerCall(incomingCall, onStatusUpdate) {
   try {
-    console.log('📥 Answering call via stealth link...');
     const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     incomingCall.answer(localStream);
-    
     return new Promise((resolve, reject) => {
       incomingCall.on('stream', (remoteStream) => {
-        console.log('💎 Media flowing on receiver side.');
+        console.log('💎 Handshake Success!');
         monitorConnection(incomingCall, onStatusUpdate);
         resolve({ call: incomingCall, localStream, remoteStream });
       });
-
       incomingCall.on('error', (error) => reject(error));
-
       incomingCall.on('close', () => {
-        console.log('🛑 Call ended.');
         localStream.getTracks().forEach(track => track.stop());
       });
     });
   } catch (error) {
-    console.error('Answer failed:', error);
     showNotification('Answer Error: Access denied.', 'error');
     throw error;
   }
