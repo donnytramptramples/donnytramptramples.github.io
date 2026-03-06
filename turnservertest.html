@@ -1,138 +1,153 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Ultimate Firewall Bypass Tester</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; background: #0f172a; color: #f1f5f9; }
-        .container { max-width: 900px; margin: 0 auto; }
-        .card { background: #1e293b; border-radius: 12px; padding: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); margin-bottom: 20px; }
-        .log { background: #020617; padding: 15px; border-radius: 8px; height: 400px; overflow-y: auto; font-family: 'Consolas', monospace; border: 1px solid #334155; line-height: 1.6; }
-        .server-tag { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-right: 8px; font-weight: bold; text-transform: uppercase; }
-        .success-bg { background: #065f46; color: #34d399; }
-        .fail-bg { background: #7f1d1d; color: #f87171; }
-        .info-bg { background: #1e3a8a; color: #60a5fa; }
-        .status-pill { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-weight: bold; margin-bottom: 10px; }
-        button { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #1d4ed8; }
-        button:disabled { background: #475569; cursor: not-allowed; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="card">
-            <h1>Firewall Bypass & ICE Diagnostics</h1>
-            <p>This tool attempts to reach multiple STUN/TURN servers to see which protocols your network permits.</p>
-            <button id="startBtn" onclick="runComprehensiveTest()">Start Full Diagnostic</button>
-        </div>
+/**
+ * peermanager.js - Fortinet Stealth Version (Oundle Edition)
+ * Version: 12.0 (Forced Relay + Port 53/443 Stealth)
+ */
 
-        <div id="summary" class="card" style="display:none;">
-            <h3>Quick Summary</h3>
-            <div id="stunStatus" class="status-pill fail-bg">STUN: Blocked</div>
-            <div id="turnStatus" class="status-pill fail-bg">TURN Relay: Blocked</div>
-            <div id="tlsStatus" class="status-pill fail-bg">TLS/443 Relay: Blocked</div>
-        </div>
+function initializePeer(setPeerId, setIncomingCall, showNotification) {
+  const config = {
+    // FORCE RELAY: Mandatory for Fortinet. 
+    // This prevents the "Block: P2P" rule from killing the connection instantly.
+    iceTransportPolicy: 'relay', 
+    iceCandidatePoolSize: 10,
+    iceServers: [
+      // --- THE GOLDEN TICKETS (IP-Based to bypass DNS blocks) ---
+      
+      // 1. DNS Port Bypass (Port 53 is almost never blocked)
+      { 
+        urls: 'turn:3.7.12.152:53?transport=udp', 
+        username: 'openrelayproject', 
+        credential: 'openrelayproject' 
+      },
+      
+      // 2. HTTPS Stealth (Port 443 TCP - Looks like web browsing)
+      { 
+        urls: 'turn:3.7.12.152:443?transport=tcp', 
+        username: 'openrelayproject', 
+        credential: 'openrelayproject' 
+      },
 
-        <div class="log" id="logOutput">Click "Start Full Diagnostic" to begin testing...</div>
-    </div>
+      // 3. Encrypted TLS (The most secure "Web.Client" camouflage)
+      { 
+        urls: 'turns:3.7.12.152:443?transport=tcp', 
+        username: 'openrelayproject', 
+        credential: 'openrelayproject' 
+      },
 
-    <script>
-        const logBox = document.getElementById('logOutput');
-        const startBtn = document.getElementById('startBtn');
-        let stunWorks = false, turnWorks = false, tlsWorks = false;
+      // 4. Secondary IP Relay (Bypass for IP-based throttling)
+      { 
+        urls: 'turns:13.235.158.122:443?transport=tcp', 
+        username: 'openrelayproject', 
+        credential: 'openrelayproject' 
+      }
+    ],
+    sdpSemantics: 'unified-plan'
+  };
 
-        const serverList = [
-            // --- STUN (UDP 19302/3478) ---
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' },
-            { urls: 'stun:stun.services.mozilla.com' },
-            { urls: 'stun:stun.cloudflare.com:3478' },
-            { urls: 'stun:stun.nextcloud.com:443' },
-            { urls: 'stun:stun.sipgate.net:3478' },
-            { urls: 'stun:stunserver.stunprotocol.org:3478' },
-            { urls: 'stun:stun.voip.blackberry.com:3478' },
-            
-            // --- TURN (OpenRelay - Various Ports) ---
-            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-            
-            // --- TURN (Xirsys - Global fallback if active) ---
-            { urls: 'turn:global.xirsys.com:3478', username: 'guest', credential: 'guest' }
-        ];
+  const peerId = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const peer = new Peer(peerId, { config: config, debug: 1 });
 
-        function log(msg, type = 'info') {
-            const time = new Date().toLocaleTimeString();
-            const tag = type === 'success' ? 'SUCCESS' : (type === 'fail' ? 'FAILED' : 'INFO');
-            const bgClass = type === 'success' ? 'success-bg' : (type === 'fail' ? 'fail-bg' : 'info-bg');
-            logBox.innerHTML += `<div><span class="server-tag ${bgClass}">${tag}</span> [${time}] ${msg}</div>`;
-            logBox.scrollTop = logBox.scrollHeight;
+  peer.on('open', (id) => {
+    console.log('✅ Stealth ID Registered:', id);
+    setPeerId(id);
+  });
+
+  peer.on('error', (error) => {
+    console.error('❌ Firewall Block:', error);
+    showNotification('Network error: ' + error.type, 'error');
+  });
+
+  peer.on('call', (call) => setIncomingCall(call));
+
+  peer.on('disconnected', () => peer.reconnect());
+
+  return peer;
+}
+
+/**
+ * monitorConnection - Real-time Diagnostics
+ */
+function monitorConnection(call, onStatusUpdate) {
+  if (!onStatusUpdate) return;
+  const pc = call.peerConnection;
+  const statsInterval = setInterval(async () => {
+    if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'closed') {
+      clearInterval(statsInterval);
+      return;
+    }
+    try {
+      const stats = await pc.getStats();
+      let connectionType = "Searching...";
+      let signalScore = "Wait...";
+
+      stats.forEach(report => {
+        if (report.type === 'remote-candidate') {
+          connectionType = report.candidateType === 'relay' ? "Relayed (Fortinet Bypass)" : "Direct (P2P)";
         }
-
-        async function runComprehensiveTest() {
-            startBtn.disabled = true;
-            logBox.innerHTML = '';
-            document.getElementById('summary').style.display = 'block';
-            log("Initializing ICE Gathering with " + serverList.length + " endpoints...", "info");
-
-            const pc = new RTCPeerConnection({ iceServers: serverList, iceCandidatePoolSize: 10 });
-            pc.createDataChannel("bypass_test");
-
-            pc.onicecandidate = (e) => {
-                if (!e.candidate) {
-                    log("--- All candidates gathered ---", "info");
-                    updateUI();
-                    return;
-                }
-
-                const c = e.candidate;
-                if (c.type === 'srflx') {
-                    stunWorks = true;
-                    log(`✅ STUN PASSED: Found Public IP (${c.address}) via ${c.url}`, "success");
-                } else if (c.type === 'relay') {
-                    turnWorks = true;
-                    if (c.url.includes('turns') || c.url.includes('443')) tlsWorks = true;
-                    log(`🚀 TURN PASSED: Relay active via ${c.protocol.toUpperCase()} on ${c.url}`, "success");
-                } else {
-                    log(`Local Path Found: ${c.address} (${c.type})`, "info");
-                }
-            };
-
-            pc.onicecandidateerror = (e) => {
-                if (e.url) {
-                    log(`❌ BLOCK: ${e.url} (Error ${e.errorCode}: ${e.errorText})`, "fail");
-                }
-            };
-
-            try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                
-                // Final timeout check
-                setTimeout(() => {
-                    if (!stunWorks && !turnWorks) {
-                        log("CRITICAL: No external paths found. Firewall is highly restrictive.", "fail");
-                    }
-                    startBtn.disabled = false;
-                }, 15000);
-
-            } catch (err) {
-                log("Setup Error: " + err.message, "fail");
-            }
+        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+          const rtt = report.currentRoundTripTime * 1000; 
+          if (rtt < 150) signalScore = "Excellent";
+          else if (rtt < 300) signalScore = "Good";
+          else signalScore = "Weak";
         }
+      });
+      onStatusUpdate({ type: connectionType, signal: signalScore });
+    } catch (e) { console.error(e); }
+  }, 2500);
+}
 
-        function updateUI() {
-            const stun = document.getElementById('stunStatus');
-            const turn = document.getElementById('turnStatus');
-            const tls = document.getElementById('tlsStatus');
+/**
+ * makeCall - Initiates call using only the "Golden" relay paths
+ */
+async function makeCall(peer, targetId, showNotification, onStatusUpdate) {
+  try {
+    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    const call = peer.call(targetId, localStream);
+    
+    return new Promise((resolve, reject) => {
+      call.on('stream', (remoteStream) => {
+        console.log('💎 Handshake Success via Stealth Relay!');
+        monitorConnection(call, onStatusUpdate);
+        resolve({ call, localStream, remoteStream });
+      });
 
-            if (stunWorks) { stun.className = 'status-pill success-bg'; stun.innerText = 'STUN: Working'; }
-            if (turnWorks) { turn.className = 'status-pill success-bg'; turn.innerText = 'TURN Relay: Working'; }
-            if (tlsWorks) { tls.className = 'status-pill success-bg'; tls.innerText = 'TLS/443 Bypass: Working'; }
-        }
-    </script>
-</body>
-</html>
+      call.on('error', (err) => reject(err));
+      call.on('close', () => {
+        localStream.getTracks().forEach(track => track.stop());
+      });
+
+      // Increased timeout for TLS handshakes
+      const callTimeout = setTimeout(() => {
+        call.close();
+        reject(new Error('Handshake failed. School DPI is blocking the bypass.'));
+      }, 40000);
+
+      call.on('stream', () => clearTimeout(callTimeout));
+    });
+  } catch (error) {
+    showNotification('Camera Error.', 'error');
+    throw error;
+  }
+}
+
+/**
+ * answerCall - Processes and responds to a call
+ */
+async function answerCall(incomingCall, onStatusUpdate) {
+  try {
+    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    incomingCall.answer(localStream);
+    return new Promise((resolve, reject) => {
+      incomingCall.on('stream', (remoteStream) => {
+        monitorConnection(incomingCall, onStatusUpdate);
+        resolve({ call: incomingCall, localStream, remoteStream });
+      });
+      incomingCall.on('error', (error) => reject(error));
+      incomingCall.on('close', () => {
+        localStream.getTracks().forEach(track => track.stop());
+      });
+    });
+  } catch (error) {
+    showNotification('Answer Error: Access denied.', 'error');
+    throw error;
+  }
+}
