@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ultimate Firewall Bypass Tester</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; background: #0f172a; color: #f1f5f9; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: #1e293b; border-radius: 12px; padding: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); margin-bottom: 20px; }
+        .log { background: #020617; padding: 15px; border-radius: 8px; height: 400px; overflow-y: auto; font-family: 'Consolas', monospace; border: 1px solid #334155; line-height: 1.6; }
+        .server-tag { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-right: 8px; font-weight: bold; text-transform: uppercase; }
+        .success-bg { background: #065f46; color: #34d399; }
+        .fail-bg { background: #7f1d1d; color: #f87171; }
+        .info-bg { background: #1e3a8a; color: #60a5fa; }
+        .status-pill { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-weight: bold; margin-bottom: 10px; }
+        button { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #475569; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Firewall Bypass & ICE Diagnostics</h1>
+            <p>This tool attempts to reach multiple STUN/TURN servers to see which protocols your network permits.</p>
+            <button id="startBtn" onclick="runComprehensiveTest()">Start Full Diagnostic</button>
+        </div>
+
+        <div id="summary" class="card" style="display:none;">
+            <h3>Quick Summary</h3>
+            <div id="stunStatus" class="status-pill fail-bg">STUN: Blocked</div>
+            <div id="turnStatus" class="status-pill fail-bg">TURN Relay: Blocked</div>
+            <div id="tlsStatus" class="status-pill fail-bg">TLS/443 Relay: Blocked</div>
+        </div>
+
+        <div class="log" id="logOutput">Click "Start Full Diagnostic" to begin testing...</div>
+    </div>
+
+    <script>
+        const logBox = document.getElementById('logOutput');
+        const startBtn = document.getElementById('startBtn');
+        let stunWorks = false, turnWorks = false, tlsWorks = false;
+
+        const serverList = [
+            // --- STUN (UDP 19302/3478) ---
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            { urls: 'stun:stun.services.mozilla.com' },
+            { urls: 'stun:stun.cloudflare.com:3478' },
+            { urls: 'stun:stun.nextcloud.com:443' },
+            { urls: 'stun:stun.sipgate.net:3478' },
+            { urls: 'stun:stunserver.stunprotocol.org:3478' },
+            { urls: 'stun:stun.voip.blackberry.com:3478' },
+            
+            // --- TURN (OpenRelay - Various Ports) ---
+            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+            
+            // --- TURN (Xirsys - Global fallback if active) ---
+            { urls: 'turn:global.xirsys.com:3478', username: 'guest', credential: 'guest' }
+        ];
+
+        function log(msg, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const tag = type === 'success' ? 'SUCCESS' : (type === 'fail' ? 'FAILED' : 'INFO');
+            const bgClass = type === 'success' ? 'success-bg' : (type === 'fail' ? 'fail-bg' : 'info-bg');
+            logBox.innerHTML += `<div><span class="server-tag ${bgClass}">${tag}</span> [${time}] ${msg}</div>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        async function runComprehensiveTest() {
+            startBtn.disabled = true;
+            logBox.innerHTML = '';
+            document.getElementById('summary').style.display = 'block';
+            log("Initializing ICE Gathering with " + serverList.length + " endpoints...", "info");
+
+            const pc = new RTCPeerConnection({ iceServers: serverList, iceCandidatePoolSize: 10 });
+            pc.createDataChannel("bypass_test");
+
+            pc.onicecandidate = (e) => {
+                if (!e.candidate) {
+                    log("--- All candidates gathered ---", "info");
+                    updateUI();
+                    return;
+                }
+
+                const c = e.candidate;
+                if (c.type === 'srflx') {
+                    stunWorks = true;
+                    log(`✅ STUN PASSED: Found Public IP (${c.address}) via ${c.url}`, "success");
+                } else if (c.type === 'relay') {
+                    turnWorks = true;
+                    if (c.url.includes('turns') || c.url.includes('443')) tlsWorks = true;
+                    log(`🚀 TURN PASSED: Relay active via ${c.protocol.toUpperCase()} on ${c.url}`, "success");
+                } else {
+                    log(`Local Path Found: ${c.address} (${c.type})`, "info");
+                }
+            };
+
+            pc.onicecandidateerror = (e) => {
+                if (e.url) {
+                    log(`❌ BLOCK: ${e.url} (Error ${e.errorCode}: ${e.errorText})`, "fail");
+                }
+            };
+
+            try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                
+                // Final timeout check
+                setTimeout(() => {
+                    if (!stunWorks && !turnWorks) {
+                        log("CRITICAL: No external paths found. Firewall is highly restrictive.", "fail");
+                    }
+                    startBtn.disabled = false;
+                }, 15000);
+
+            } catch (err) {
+                log("Setup Error: " + err.message, "fail");
+            }
+        }
+
+        function updateUI() {
+            const stun = document.getElementById('stunStatus');
+            const turn = document.getElementById('turnStatus');
+            const tls = document.getElementById('tlsStatus');
+
+            if (stunWorks) { stun.className = 'status-pill success-bg'; stun.innerText = 'STUN: Working'; }
+            if (turnWorks) { turn.className = 'status-pill success-bg'; turn.innerText = 'TURN Relay: Working'; }
+            if (tlsWorks) { tls.className = 'status-pill success-bg'; tls.innerText = 'TLS/443 Bypass: Working'; }
+        }
+    </script>
+</body>
+</html>
