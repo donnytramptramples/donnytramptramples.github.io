@@ -1,153 +1,160 @@
-/**
- * peermanager.js - Fortinet Stealth Version (Oundle Edition)
- * Version: 12.0 (Forced Relay + Port 53/443 Stealth)
- */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Oundle Fortinet Bypass: 100+ Path Stress Tester</title>
+    <style>
+        body { font-family: 'Consolas', monospace; background: #050505; color: #00ff41; padding: 20px; font-size: 13px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #00ff41; padding-bottom: 15px; margin-bottom: 20px; }
+        .grid-header { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr 3fr; font-weight: bold; border-bottom: 1px solid #00ff41; padding: 10px; background: #111; }
+        .row { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr 3fr; padding: 6px 10px; border-bottom: 1px solid #222; }
+        .log { background: #000; border: 1px solid #333; height: 500px; overflow-y: scroll; margin-top: 10px; }
+        .success { color: #fff; background: #008000; font-weight: bold; padding: 2px 4px; }
+        .fail { color: #ff4141; opacity: 0.7; }
+        .testing { color: #ffff00; }
+        button { background: #00ff41; color: #000; border: none; padding: 12px 25px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        button:disabled { background: #00441b; color: #00ff41; cursor: wait; }
+        #stats { font-size: 1.2rem; margin-top: 10px; color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Oundle Bypass Scanner</h1>
+                <p>Status: <span id="progress">Waiting to start...</span></p>
+            </div>
+            <button id="runBtn" onclick="runMassiveScan()">RUN 100+ PATH SCAN</button>
+        </div>
 
-function initializePeer(setPeerId, setIncomingCall, showNotification) {
-  const config = {
-    // FORCE RELAY: Mandatory for Fortinet. 
-    // This prevents the "Block: P2P" rule from killing the connection instantly.
-    iceTransportPolicy: 'relay', 
-    iceCandidatePoolSize: 10,
-    iceServers: [
-      // --- THE GOLDEN TICKETS (IP-Based to bypass DNS blocks) ---
-      
-      // 1. DNS Port Bypass (Port 53 is almost never blocked)
-      { 
-        urls: 'turn:3.7.12.152:53?transport=udp', 
-        username: 'openrelayproject', 
-        credential: 'openrelayproject' 
-      },
-      
-      // 2. HTTPS Stealth (Port 443 TCP - Looks like web browsing)
-      { 
-        urls: 'turn:3.7.12.152:443?transport=tcp', 
-        username: 'openrelayproject', 
-        credential: 'openrelayproject' 
-      },
+        <div id="stats">Successes: 0</div>
 
-      // 3. Encrypted TLS (The most secure "Web.Client" camouflage)
-      { 
-        urls: 'turns:3.7.12.152:443?transport=tcp', 
-        username: 'openrelayproject', 
-        credential: 'openrelayproject' 
-      },
+        <div class="grid-header">
+            <div>Relay Endpoint</div>
+            <div>Port</div>
+            <div>Proto</div>
+            <div>Type</div>
+            <div>Result</div>
+        </div>
+        <div id="logOutput" class="log"></div>
+    </div>
 
-      // 4. Secondary IP Relay (Bypass for IP-based throttling)
-      { 
-        urls: 'turns:13.235.158.122:443?transport=tcp', 
-        username: 'openrelayproject', 
-        credential: 'openrelayproject' 
-      }
-    ],
-    sdpSemantics: 'unified-plan'
-  };
+    <script>
+        const logBox = document.getElementById('logOutput');
+        const statsBox = document.getElementById('stats');
+        const runBtn = document.getElementById('runBtn');
+        const progress = document.getElementById('progress');
 
-  const peerId = Math.random().toString(36).substring(2, 7).toUpperCase();
-  const peer = new Peer(peerId, { config: config, debug: 1 });
+        // Brute-force parameters to generate 100+ paths
+        const relayIPs = [
+            '3.7.12.152',      // Metered Primary
+            '13.235.158.122',  // Metered Secondary
+            '15.206.115.151',  // Metered Tertiary
+            '18.191.223.12',   // Metered Quaternary
+            'global.xirsys.com'// Xirsys AWS
+        ];
+        const ports =; // Ports 53 and 443 are most likely to work
+        const transports = ['udp', 'tcp'];
+        let successCount = 0;
 
-  peer.on('open', (id) => {
-    console.log('✅ Stealth ID Registered:', id);
-    setPeerId(id);
-  });
-
-  peer.on('error', (error) => {
-    console.error('❌ Firewall Block:', error);
-    showNotification('Network error: ' + error.type, 'error');
-  });
-
-  peer.on('call', (call) => setIncomingCall(call));
-
-  peer.on('disconnected', () => peer.reconnect());
-
-  return peer;
-}
-
-/**
- * monitorConnection - Real-time Diagnostics
- */
-function monitorConnection(call, onStatusUpdate) {
-  if (!onStatusUpdate) return;
-  const pc = call.peerConnection;
-  const statsInterval = setInterval(async () => {
-    if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'closed') {
-      clearInterval(statsInterval);
-      return;
-    }
-    try {
-      const stats = await pc.getStats();
-      let connectionType = "Searching...";
-      let signalScore = "Wait...";
-
-      stats.forEach(report => {
-        if (report.type === 'remote-candidate') {
-          connectionType = report.candidateType === 'relay' ? "Relayed (Fortinet Bypass)" : "Direct (P2P)";
+        function addRow(url, port, proto, type) {
+            const id = 'id-' + Math.random().toString(36).substr(2, 9);
+            logBox.innerHTML += `
+                <div class="row" id="${id}">
+                    <div style="font-size:10px">${url}</div>
+                    <div>${port}</div>
+                    <div>${proto}</div>
+                    <div>${type}</div>
+                    <div class="testing">WAITING...</div>
+                </div>`;
+            return id;
         }
-        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-          const rtt = report.currentRoundTripTime * 1000; 
-          if (rtt < 150) signalScore = "Excellent";
-          else if (rtt < 300) signalScore = "Good";
-          else signalScore = "Weak";
+
+        function updateRow(id, result, isSuccess) {
+            const el = document.getElementById(id).lastElementChild;
+            el.innerText = result;
+            el.className = isSuccess ? 'success' : 'fail';
+            if (isSuccess) {
+                successCount++;
+                statsBox.innerText = `Successes: ${successCount}`;
+            }
         }
-      });
-      onStatusUpdate({ type: connectionType, signal: signalScore });
-    } catch (e) { console.error(e); }
-  }, 2500);
-}
 
-/**
- * makeCall - Initiates call using only the "Golden" relay paths
- */
-async function makeCall(peer, targetId, showNotification, onStatusUpdate) {
-  try {
-    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    const call = peer.call(targetId, localStream);
-    
-    return new Promise((resolve, reject) => {
-      call.on('stream', (remoteStream) => {
-        console.log('💎 Handshake Success via Stealth Relay!');
-        monitorConnection(call, onStatusUpdate);
-        resolve({ call, localStream, remoteStream });
-      });
+        async function testPath(url, type) {
+            const rowId = addRow(url, url.split(':')[2].split('?')[0], url.split('=')[1] || 'udp', type);
+            document.getElementById(rowId).children.innerText = 'TESTING...';
+            
+            return new Promise((resolve) => {
+                const pc = new RTCPeerConnection({
+                    iceServers: [{ urls: url, username: 'openrelayproject', credential: 'openrelayproject' }],
+                    iceTransportPolicy: 'relay'
+                });
 
-      call.on('error', (err) => reject(err));
-      call.on('close', () => {
-        localStream.getTracks().forEach(track => track.stop());
-      });
+                let solved = false;
+                pc.onicecandidate = (e) => {
+                    if (e.candidate && e.candidate.type === 'relay') {
+                        solved = true;
+                        updateRow(rowId, `✅ SUCCESS (${e.candidate.protocol})`, true);
+                        pc.close();
+                        resolve(true);
+                    }
+                };
 
-      // Increased timeout for TLS handshakes
-      const callTimeout = setTimeout(() => {
-        call.close();
-        reject(new Error('Handshake failed. School DPI is blocking the bypass.'));
-      }, 40000);
+                pc.onicecandidateerror = () => {
+                    if (!solved) {
+                        updateRow(rowId, '❌ BLOCKED', false);
+                        pc.close();
+                        resolve(false);
+                    }
+                };
 
-      call.on('stream', () => clearTimeout(callTimeout));
-    });
-  } catch (error) {
-    showNotification('Camera Error.', 'error');
-    throw error;
-  }
-}
+                setTimeout(() => {
+                    if (!solved) {
+                        updateRow(rowId, '❌ TIMEOUT', false);
+                        pc.close();
+                        resolve(false);
+                    }
+                }, 5000);
 
-/**
- * answerCall - Processes and responds to a call
- */
-async function answerCall(incomingCall, onStatusUpdate) {
-  try {
-    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    incomingCall.answer(localStream);
-    return new Promise((resolve, reject) => {
-      incomingCall.on('stream', (remoteStream) => {
-        monitorConnection(incomingCall, onStatusUpdate);
-        resolve({ call: incomingCall, localStream, remoteStream });
-      });
-      incomingCall.on('error', (error) => reject(error));
-      incomingCall.on('close', () => {
-        localStream.getTracks().forEach(track => track.stop());
-      });
-    });
-  } catch (error) {
-    showNotification('Answer Error: Access denied.', 'error');
-    throw error;
-  }
-}
+                pc.createDataChannel('t');
+                pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => resolve(false));
+            });
+        }
+
+        async function runMassiveScan() {
+            runBtn.disabled = true;
+            logBox.innerHTML = '';
+            successCount = 0;
+            statsBox.innerText = `Successes: 0`;
+
+            const tasks = [];
+            
+            // Generate the 100+ path matrix
+            for (let ip of relayIPs) {
+                for (let port of ports) {
+                    for (let t of transports) {
+                        // Test TURN
+                        tasks.push({ url: `turn:${ip}:${port}?transport=${t}`, type: 'TURN' });
+                        // Test TURNS (TLS) over TCP
+                        if (t === 'tcp') {
+                            tasks.push({ url: `turns:${ip}:${port}?transport=tcp`, type: 'TURNS' });
+                        }
+                    }
+                }
+            }
+
+            logBox.innerHTML += `<div>--- Generated ${tasks.length} unique paths. Testing in batches... ---</div>`;
+
+            // Run in small batches so the firewall doesn't block the IP for flooding
+            for (let i = 0; i < tasks.length; i++) {
+                progress.innerText = `Testing ${i+1}/${tasks.length}...`;
+                await testPath(tasks[i].url, tasks[i].type);
+            }
+
+            progress.innerText = "Scan Complete.";
+            runBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
