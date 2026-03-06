@@ -1,50 +1,43 @@
 /**
- * peermanager.js - High-Reliability P2P Video Call Logic
- * Version: 3.2 (School Firewall "Relay-First" Edition)
- * Purpose: Ensures connectivity by forcing encrypted relay when P2P fails.
+ * peermanager.js - Stealth IP-Based Firewall Bypass Version
+ * Version: 7.0 (DNS-Bypass + TCP/TLS Hybrid)
+ * Preserves full 160+ line structure for build compatibility.
  */
 
 function initializePeer(setPeerId, setIncomingCall, showNotification) {
-  // CONFIGURATION: Multi-layered STUN/TURNS strategy.
-  // We prioritize TLS-wrapped TCP relay to mimic standard HTTPS web traffic.
+  // CONFIGURATION: Using direct IPs to bypass domain-level blacklisting.
+  // We use the AWS-backed IP for Metered.ca (3.7.12.152) to avoid "Error 701".
   const config = {
-    // FALLBACK: If 'all' fails, you can change this to 'relay' to force bypass.
-    // Setting to 'all' allows same-wifi (fast) but uses TURN for different-wifi.
+    // FORCE RELAY: Change 'all' to 'relay' if different Wi-Fi still fails.
     iceTransportPolicy: 'all', 
     iceCandidatePoolSize: 10,
     iceServers: [
-      // --- LAYER 1: Standard STUN (Fastest, works on same Wi-Fi) ---
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      
-      // --- LAYER 2: Advanced STUN (Uses Port 443 to bypass basic filters) ---
-      { urls: 'stun:stun.services.mozilla.com' },
+      // --- STUN (Direct IPs to bypass school DNS blocks) ---
+      { urls: 'stun:74.125.192.127:19302' }, // Google IP
+      { urls: 'stun:172.64.155.249:3478' },  // Cloudflare IP
       { urls: 'stun:stun.nextcloud.com:443' },
-      { urls: 'stun:stun.l.google.com:19305' },
 
-      // --- LAYER 3: TURN Relays (The "Workhorses" for different networks) ---
+      // --- TURN (IP-BASED RELAY to bypass domain filters like metered.ca) ---
+      // Uses 'openrelayproject' credentials but hits the server directly via IP.
       { 
-        urls: 'turn:openrelay.metered.ca:80', 
+        urls: 'turn:3.7.12.152:80', 
         username: 'openrelayproject', 
         credential: 'openrelayproject' 
       },
       { 
-        urls: 'turn:openrelay.metered.ca:443', 
+        urls: 'turn:3.7.12.152:443', 
         username: 'openrelayproject', 
         credential: 'openrelayproject' 
       },
-      
-      // --- LAYER 4: The "School Bypass" (TCP + TLS) ---
-      // transport=tcp: Forces data through standard web protocols.
-      // turns: Wraps video in SSL encryption (mimics unblockable HTTPS).
+      // TCP Fallback: Mimics standard HTTPS web traffic on port 443.
       { 
-        urls: 'turn:openrelay.metered.ca:443?transport=tcp', 
+        urls: 'turn:3.7.12.152:443?transport=tcp', 
         username: 'openrelayproject', 
         credential: 'openrelayproject' 
       },
+      // TURNS (TLS): The ultimate bypass. Wraps video in SSL encryption.
       { 
-        urls: 'turns:openrelay.metered.ca:443?transport=tcp', 
+        urls: 'turns:3.7.12.152:443?transport=tcp', 
         username: 'openrelayproject', 
         credential: 'openrelayproject' 
       }
@@ -52,36 +45,36 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
     sdpSemantics: 'unified-plan'
   };
 
-  // Generate a unique 5-character ID for the user (e.g., A7B9C)
+  // Generate a unique 5-character ID for the user.
   const peerId = Math.random().toString(36).substring(2, 7).toUpperCase();
   
-  // Initialize PeerJS with the reinforced IceServer configuration.
+  // Initialize PeerJS with the stealth IP configuration.
   const peer = new Peer(peerId, { 
     config: config,
-    debug: 1 
+    debug: 1 // Set to 3 for deep ICE troubleshooting.
   });
 
-  // Event: Fired when the signaling server assigns the Peer ID.
+  // Event: Successfully registered with signaling server.
   peer.on('open', (id) => {
-    console.log('✅ Peer ID registered with signaling server:', id);
+    console.log('✅ Registered Stealth ID:', id);
     setPeerId(id);
   });
 
-  // Event: Global PeerJS error handling.
+  // Event: Global network or signaling error.
   peer.on('error', (error) => {
-    console.error('❌ PeerJS Global Error:', error);
-    showNotification('Network connection error: ' + error.type, 'error');
+    console.error('❌ Network Link Error:', error);
+    showNotification('Link error: ' + error.type, 'error');
   });
 
-  // Event: Handling an incoming call request from a remote peer.
+  // Event: Handling an incoming call.
   peer.on('call', (call) => {
     console.log('📞 Incoming call detected from:', call.peer);
     setIncomingCall(call);
   });
 
-  // Reconnection logic: Helps maintain presence on spotty school Wi-Fi.
+  // Reconnection logic for spotty school Wi-Fi.
   peer.on('disconnected', () => {
-    console.warn('⚠️ Signaling disconnected. Attempting to re-establish link...');
+    console.warn('⚠️ Signaling lost. Attempting reconnect...');
     peer.reconnect();
   });
 
@@ -89,29 +82,27 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
 }
 
 /**
- * monitorConnection - Internal helper to track P2P vs Relay and Signal Strength
+ * monitorConnection - Real-time diagnostics for connection type/signal
  */
 function monitorConnection(call, onStatusUpdate) {
   if (!onStatusUpdate) return;
-
   const pc = call.peerConnection;
   const statsInterval = setInterval(async () => {
     if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'closed') {
       clearInterval(statsInterval);
       return;
     }
-
     try {
       const stats = await pc.getStats();
       let connectionType = "Checking...";
-      let signalScore = "Calculating...";
+      let signalScore = "Wait...";
 
       stats.forEach(report => {
-        // Identify if connection is Direct or Relayed
+        // Detect if the connection succeeded via Relay or Direct.
         if (report.type === 'remote-candidate') {
-          connectionType = report.candidateType === 'relay' ? "Relayed (Firewall Bypass)" : "Direct (P2P)";
+          connectionType = report.candidateType === 'relay' ? "Relayed (Bypass Active)" : "Direct (P2P)";
         }
-        // Identify Signal Strength via Round Trip Time
+        // Calculate signal quality via Round Trip Time.
         if (report.type === 'candidate-pair' && report.state === 'succeeded') {
           const rtt = report.currentRoundTripTime * 1000; 
           if (rtt < 150) signalScore = "Excellent";
@@ -119,94 +110,74 @@ function monitorConnection(call, onStatusUpdate) {
           else signalScore = "Weak";
         }
       });
-
       onStatusUpdate({ type: connectionType, signal: signalScore });
-    } catch (e) {
-      console.error("Stats monitoring error:", e);
-    }
+    } catch (e) { console.error("Stats error:", e); }
   }, 2500);
 }
 
 /**
- * makeCall - Initiates an outgoing video/audio call
+ * makeCall - Initiates outgoing call with stealth monitoring.
  */
 async function makeCall(peer, targetId, showNotification, onStatusUpdate) {
   try {
-    console.log('🚀 Attempting to start outgoing call...');
-    
-    const localStream = await navigator.mediaDevices.getUserMedia({ 
-      video: true, 
-      audio: true 
-    });
-
-    console.log('📡 Signaling peer:', targetId);
+    console.log('🚀 Initiating stealth handshake...');
+    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     const call = peer.call(targetId, localStream);
     
     return new Promise((resolve, reject) => {
       call.on('stream', (remoteStream) => {
-        console.log('💎 Media stream established successfully!');
+        console.log('💎 Connection established via stealth relay.');
         monitorConnection(call, onStatusUpdate);
         resolve({ call, localStream, remoteStream });
       });
 
-      call.on('error', (error) => {
-        console.error('⚠️ Call connection failed:', error);
-        reject(error);
-      });
-
+      call.on('error', (error) => reject(error));
+      
       call.on('close', () => {
-        console.log('🛑 Call terminated.');
+        console.log('🛑 Call ended.');
         localStream.getTracks().forEach(track => track.stop());
       });
 
+      // Handshake timeout: allows for multiple TCP/TLS fallback attempts.
       const callTimeout = setTimeout(() => {
-        console.warn('⌛ Handshake timed out.');
         call.close();
-        reject(new Error('Connection timed out. Firewall is blocking the relay.'));
-      }, 30000);
+        reject(new Error('Handshake failed. School DPI is blocking the tunnel.'));
+      }, 35000);
 
       call.on('stream', () => clearTimeout(callTimeout));
     });
   } catch (error) {
-    console.error('❌ Outgoing call system error:', error);
-    showNotification('Hardware Error: Check camera permissions.', 'error');
+    console.error('Hardware access error:', error);
+    showNotification('Camera access denied.', 'error');
     throw error;
   }
 }
 
 /**
- * answerCall - Processes and responds to an incoming call
+ * answerCall - Processes and responds to a call.
  */
 async function answerCall(incomingCall, onStatusUpdate) {
   try {
-    console.log('📥 Processing answer for call from:', incomingCall.peer);
-    
-    const localStream = await navigator.mediaDevices.getUserMedia({ 
-      video: true, 
-      audio: true 
-    });
-
+    console.log('📥 Answering call via stealth link...');
+    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     incomingCall.answer(localStream);
-
+    
     return new Promise((resolve, reject) => {
       incomingCall.on('stream', (remoteStream) => {
-        console.log('💎 Remote media received on receiver side.');
+        console.log('💎 Media flowing on receiver side.');
         monitorConnection(incomingCall, onStatusUpdate);
         resolve({ call: incomingCall, localStream, remoteStream });
       });
 
-      incomingCall.on('error', (error) => {
-        console.error('⚠️ Answer logic error:', error);
-        reject(error);
-      });
+      incomingCall.on('error', (error) => reject(error));
 
       incomingCall.on('close', () => {
-        console.log('🛑 Call terminated by peer.');
+        console.log('🛑 Call ended.');
         localStream.getTracks().forEach(track => track.stop());
       });
     });
   } catch (error) {
-    console.error('❌ Failed to answer call:', error);
+    console.error('Answer failed:', error);
     showNotification('Answer Error: Access denied.', 'error');
     throw error;
   }
