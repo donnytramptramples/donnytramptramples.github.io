@@ -1,15 +1,19 @@
 /**
  * peermanager.js - High-Reliability P2P Video Call Logic
- * Version: 3.0 (Extreme Firewall Bypass + Connection Diagnostics)
- * Purpose: Ensures connectivity on restricted school networks and monitors signal.
+ * Version: 3.2 (School Firewall "Relay-First" Edition)
+ * Purpose: Ensures connectivity by forcing encrypted relay when P2P fails.
  */
 
 function initializePeer(setPeerId, setIncomingCall, showNotification) {
   // CONFIGURATION: Multi-layered STUN/TURNS strategy.
   // We prioritize TLS-wrapped TCP relay to mimic standard HTTPS web traffic.
   const config = {
+    // FALLBACK: If 'all' fails, you can change this to 'relay' to force bypass.
+    // Setting to 'all' allows same-wifi (fast) but uses TURN for different-wifi.
+    iceTransportPolicy: 'all', 
+    iceCandidatePoolSize: 10,
     iceServers: [
-      // --- LAYER 1: Standard STUN (Fastest, but often blocked by schools) ---
+      // --- LAYER 1: Standard STUN (Fastest, works on same Wi-Fi) ---
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
@@ -19,8 +23,7 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
       { urls: 'stun:stun.nextcloud.com:443' },
       { urls: 'stun:stun.l.google.com:19305' },
 
-      // --- LAYER 3: TURN Relays (The "Workhorses" for restricted networks) ---
-      // These act as an intermediate server when P2P is blocked.
+      // --- LAYER 3: TURN Relays (The "Workhorses" for different networks) ---
       { 
         urls: 'turn:openrelay.metered.ca:80', 
         username: 'openrelayproject', 
@@ -33,8 +36,8 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
       },
       
       // --- LAYER 4: The "School Bypass" (TCP + TLS) ---
-      // transport=tcp: Forces the data through standard web protocols.
-      // turns: Wraps the video data in SSL encryption (mimics HTTPS).
+      // transport=tcp: Forces data through standard web protocols.
+      // turns: Wraps video in SSL encryption (mimics unblockable HTTPS).
       { 
         urls: 'turn:openrelay.metered.ca:443?transport=tcp', 
         username: 'openrelayproject', 
@@ -46,8 +49,6 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
         credential: 'openrelayproject' 
       }
     ],
-    // iceCandidatePoolSize: Pre-gathers candidates to speed up connection on slow WiFi.
-    iceCandidatePoolSize: 10,
     sdpSemantics: 'unified-plan'
   };
 
@@ -57,7 +58,7 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
   // Initialize PeerJS with the reinforced IceServer configuration.
   const peer = new Peer(peerId, { 
     config: config,
-    debug: 1 // Set to 3 if you need to debug the ICE gathering process in console.
+    debug: 1 
   });
 
   // Event: Fired when the signaling server assigns the Peer ID.
@@ -66,7 +67,7 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
     setPeerId(id);
   });
 
-  // Event: Global PeerJS error handling (e.g., network timeout, disconnected).
+  // Event: Global PeerJS error handling.
   peer.on('error', (error) => {
     console.error('❌ PeerJS Global Error:', error);
     showNotification('Network connection error: ' + error.type, 'error');
@@ -144,13 +145,8 @@ async function makeCall(peer, targetId, showNotification, onStatusUpdate) {
     return new Promise((resolve, reject) => {
       call.on('stream', (remoteStream) => {
         console.log('💎 Media stream established successfully!');
-        // Start connection monitoring
         monitorConnection(call, onStatusUpdate);
-        resolve({
-          call,
-          localStream,
-          remoteStream
-        });
+        resolve({ call, localStream, remoteStream });
       });
 
       call.on('error', (error) => {
@@ -164,9 +160,9 @@ async function makeCall(peer, targetId, showNotification, onStatusUpdate) {
       });
 
       const callTimeout = setTimeout(() => {
-        console.warn('⌛ Call timed out - no answer from receiver.');
+        console.warn('⌛ Handshake timed out.');
         call.close();
-        reject(new Error('Connection timed out. Firewall likely blocking relay.'));
+        reject(new Error('Connection timed out. Firewall is blocking the relay.'));
       }, 30000);
 
       call.on('stream', () => clearTimeout(callTimeout));
@@ -195,13 +191,8 @@ async function answerCall(incomingCall, onStatusUpdate) {
     return new Promise((resolve, reject) => {
       incomingCall.on('stream', (remoteStream) => {
         console.log('💎 Remote media received on receiver side.');
-        // Start connection monitoring
         monitorConnection(incomingCall, onStatusUpdate);
-        resolve({
-          call: incomingCall,
-          localStream,
-          remoteStream
-        });
+        resolve({ call: incomingCall, localStream, remoteStream });
       });
 
       incomingCall.on('error', (error) => {
