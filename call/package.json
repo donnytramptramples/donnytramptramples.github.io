@@ -1,0 +1,19 @@
+{
+  "name": "p2p-video-call",
+  "version": "1.0.0",
+  "description": "Secure peer-to-peer video calling application",
+  "scripts": {
+    "start": "npx serve -s . -p 3000"
+  },
+  "keywords": [
+    "video-call",
+    "p2p",
+    "webrtc",
+    "peer-to-peer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}
