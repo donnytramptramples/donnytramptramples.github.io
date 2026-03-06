@@ -1,7 +1,7 @@
 /**
  * peermanager.js - High-Reliability P2P Video Call Logic
- * Version: 2.1 (Extreme Firewall Bypass)
- * Purpose: Ensures connectivity on restricted school/corporate networks.
+ * Version: 3.0 (Extreme Firewall Bypass + Connection Diagnostics)
+ * Purpose: Ensures connectivity on restricted school networks and monitors signal.
  */
 
 function initializePeer(setPeerId, setIncomingCall, showNotification) {
@@ -88,16 +88,51 @@ function initializePeer(setPeerId, setIncomingCall, showNotification) {
 }
 
 /**
- * makeCall - Initiates an outgoing video/audio call
- * @param {Object} peer - The local Peer instance
- * @param {String} targetId - The remote Peer ID to call
+ * monitorConnection - Internal helper to track P2P vs Relay and Signal Strength
  */
-async function makeCall(peer, targetId, showNotification) {
+function monitorConnection(call, onStatusUpdate) {
+  if (!onStatusUpdate) return;
+
+  const pc = call.peerConnection;
+  const statsInterval = setInterval(async () => {
+    if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'closed') {
+      clearInterval(statsInterval);
+      return;
+    }
+
+    try {
+      const stats = await pc.getStats();
+      let connectionType = "Checking...";
+      let signalScore = "Calculating...";
+
+      stats.forEach(report => {
+        // Identify if connection is Direct or Relayed
+        if (report.type === 'remote-candidate') {
+          connectionType = report.candidateType === 'relay' ? "Relayed (Firewall Bypass)" : "Direct (P2P)";
+        }
+        // Identify Signal Strength via Round Trip Time
+        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+          const rtt = report.currentRoundTripTime * 1000; 
+          if (rtt < 150) signalScore = "Excellent";
+          else if (rtt < 300) signalScore = "Good";
+          else signalScore = "Weak";
+        }
+      });
+
+      onStatusUpdate({ type: connectionType, signal: signalScore });
+    } catch (e) {
+      console.error("Stats monitoring error:", e);
+    }
+  }, 2500);
+}
+
+/**
+ * makeCall - Initiates an outgoing video/audio call
+ */
+async function makeCall(peer, targetId, showNotification, onStatusUpdate) {
   try {
     console.log('🚀 Attempting to start outgoing call...');
     
-    // Request access to hardware (Camera/Mic). 
-    // Fails here if "NotAllowedError" appears.
     const localStream = await navigator.mediaDevices.getUserMedia({ 
       video: true, 
       audio: true 
@@ -107,9 +142,10 @@ async function makeCall(peer, targetId, showNotification) {
     const call = peer.call(targetId, localStream);
     
     return new Promise((resolve, reject) => {
-      // Event: Remote peer answers and media starts flowing.
       call.on('stream', (remoteStream) => {
         console.log('💎 Media stream established successfully!');
+        // Start connection monitoring
+        monitorConnection(call, onStatusUpdate);
         resolve({
           call,
           localStream,
@@ -117,56 +153,50 @@ async function makeCall(peer, targetId, showNotification) {
         });
       });
 
-      // Event: Specific negotiation or connection error.
       call.on('error', (error) => {
         console.error('⚠️ Call connection failed:', error);
         reject(error);
       });
 
-      // Cleanup: Stops the camera light when the call is closed.
       call.on('close', () => {
         console.log('🛑 Call terminated.');
         localStream.getTracks().forEach(track => track.stop());
       });
 
-      // 30-Second Timeout: Fails if the network blocks the handshake.
       const callTimeout = setTimeout(() => {
         console.warn('⌛ Call timed out - no answer from receiver.');
         call.close();
-        reject(new Error('Connection timed out. The school firewall may be blocking P2P/Relay traffic.'));
+        reject(new Error('Connection timed out. Firewall likely blocking relay.'));
       }, 30000);
 
-      // Clear the timeout if we actually get a stream.
       call.on('stream', () => clearTimeout(callTimeout));
     });
   } catch (error) {
     console.error('❌ Outgoing call system error:', error);
-    showNotification('Hardware Error: Ensure camera and mic are permitted.', 'error');
+    showNotification('Hardware Error: Check camera permissions.', 'error');
     throw error;
   }
 }
 
 /**
  * answerCall - Processes and responds to an incoming call
- * @param {Object} incomingCall - The PeerJS call object
  */
-async function answerCall(incomingCall) {
+async function answerCall(incomingCall, onStatusUpdate) {
   try {
     console.log('📥 Processing answer for call from:', incomingCall.peer);
     
-    // Receiver must also provide a local stream to the caller.
     const localStream = await navigator.mediaDevices.getUserMedia({ 
       video: true, 
       audio: true 
     });
 
-    // Answer the call using our local camera/mic stream.
     incomingCall.answer(localStream);
 
     return new Promise((resolve, reject) => {
-      // Event: Media from the caller is received.
       incomingCall.on('stream', (remoteStream) => {
         console.log('💎 Remote media received on receiver side.');
+        // Start connection monitoring
+        monitorConnection(incomingCall, onStatusUpdate);
         resolve({
           call: incomingCall,
           localStream,
@@ -174,13 +204,11 @@ async function answerCall(incomingCall) {
         });
       });
 
-      // Event: Receiver-side connection error.
       incomingCall.on('error', (error) => {
         console.error('⚠️ Answer logic error:', error);
         reject(error);
       });
 
-      // Cleanup: Stops the camera light when the call is closed.
       incomingCall.on('close', () => {
         console.log('🛑 Call terminated by peer.');
         localStream.getTracks().forEach(track => track.stop());
@@ -188,7 +216,7 @@ async function answerCall(incomingCall) {
     });
   } catch (error) {
     console.error('❌ Failed to answer call:', error);
-    showNotification('Answer Error: Access to camera or microphone denied.', 'error');
+    showNotification('Answer Error: Access denied.', 'error');
     throw error;
   }
 }
