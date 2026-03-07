@@ -1,14 +1,14 @@
 /* global React */
 
 /**
- * jitsi.js (FULL)
- * - Auto join (no Join button): prejoinConfig.enabled=false [1](https://github.com/jitsi/jitsi-meet-react-sdk)
- * - Use addListener (EventEmitter) for events [2](https://github.com/jitsi/jitsi-meet/issues/4671)
- * - Chat/reactions/file transfer over Jitsi datachannel:
- *    - dataChannelOpened + endpointTextMessageReceived [2](https://github.com/jitsi/jitsi-meet/issues/4671)
- *    - sendEndpointTextMessage 
- * - Hide Jitsi UI as much as possible and make it feel like your GUI
- * - Show your own local camera preview tile
+ * jitsi.js (FULL, KDE Plasma Dark)
+ * - Auto join: prejoinConfig.enabled=false (prejoinPageEnabled deprecated) [2](https://github.com/jitsi/jitsi-meet-react-sdk)
+ * - Events: use addListener (EventEmitter) [1](https://github.com/jitsi/jitsi-meet/issues/4671)
+ * - IFrame API script: https://<domain>/external_api.js [3](https://github.com/jitsi/jitsi-meet/issues/2027)
+ * - Data channel events: dataChannelOpened + endpointTextMessageReceived [1](https://github.com/jitsi/jitsi-meet/issues/4671)
+ * - Make it feel like your GUI: hide toolbar, block iframe pointer-events, mask chrome
+ * - Local preview tile always
+ * - Chat/emoji/files via Jitsi endpoint datachannel when available; graceful fallback if not.
  */
 
 /* -----------------------------
@@ -29,7 +29,6 @@ window.triggerJitsiFallback = function triggerJitsiFallback(payload) {
 window.prewarmJitsi = function prewarmJitsi(domain = "jitsi.math.uzh.ch") {
   try {
     const head = document.head || document.getElementsByTagName("head")[0];
-
     const addLink = (rel, href, as) => {
       if (document.querySelector(`link[rel="${rel}"][href="${href}"]`)) return;
       const l = document.createElement("link");
@@ -38,16 +37,19 @@ window.prewarmJitsi = function prewarmJitsi(domain = "jitsi.math.uzh.ch") {
       if (as) l.as = as;
       head.appendChild(l);
     };
-
     addLink("preconnect", `https://${domain}`);
     addLink("dns-prefetch", `https://${domain}`);
-    addLink("preload", `https://${domain}/external_api.js`, "script"); // external_api.js path [3](https://github.com/jitsi/jitsi-meet/issues/2027)
+    addLink("preload", `https://${domain}/external_api.js`, "script"); // [3](https://github.com/jitsi/jitsi-meet/issues/2027)
   } catch (_) {}
 };
 
 /* -----------------------------
    Small helpers
 ------------------------------ */
+
+function safeJsonParse(s) {
+  try { return JSON.parse(s); } catch { return null; }
+}
 
 function arrayBufferToBase64(buffer) {
   let binary = "";
@@ -63,8 +65,59 @@ function base64ToArrayBuffer(base64) {
   return bytes.buffer;
 }
 
-function safeJsonParse(s) {
-  try { return JSON.parse(s); } catch { return null; }
+/* -----------------------------
+   KDE Plasma Dark theme injection
+------------------------------ */
+
+function injectKdeThemeOnce() {
+  if (document.getElementById("kde-plasma-dark-theme")) return;
+  const style = document.createElement("style");
+  style.id = "kde-plasma-dark-theme";
+  style.textContent = `
+    :root {
+      --kde-bg: #1e1f29;
+      --kde-panel: #2a2e38;
+      --kde-panel2: #252a33;
+      --kde-border: #3b4048;
+      --kde-text: #eff0f1;
+      --kde-muted: #9aa0a6;
+      --kde-accent: #3daee9;
+      --kde-danger: #da4453;
+      --kde-shadow: 0 10px 30px rgba(0,0,0,0.55);
+    }
+    .kde-glass {
+      background: linear-gradient(180deg, rgba(42,46,56,0.88), rgba(30,31,41,0.88));
+      border: 1px solid var(--kde-border);
+      box-shadow: var(--kde-shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--kde-text);
+    }
+    .kde-chip {
+      background: rgba(42,46,56,0.92);
+      border: 1px solid var(--kde-border);
+      color: var(--kde-text);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    }
+    .kde-btn {
+      background: var(--kde-panel);
+      border: 1px solid var(--kde-border);
+      color: var(--kde-text);
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+    .kde-btn:hover {
+      border-color: var(--kde-accent);
+      box-shadow: inset 0 0 0 1px var(--kde-accent);
+      transform: translateY(-1px);
+    }
+    .kde-btn:active { transform: translateY(0px) scale(0.98); }
+    .kde-btn-danger { background: var(--kde-danger); border-color: rgba(0,0,0,0.25); }
+    .kde-label {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      color: rgba(239,240,241,0.75);
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 /* -----------------------------
@@ -81,6 +134,8 @@ function JitsiCall({
   setFileTransfers,
   onHangup
 }) {
+  injectKdeThemeOnce();
+
   const DOMAIN = "jitsi.math.uzh.ch";
 
   const jitsiContainerRef = React.useRef(null);
@@ -93,10 +148,19 @@ function JitsiCall({
   const localVideoRef = React.useRef(null);
   const localStreamRef = React.useRef(null);
 
-  const participantsRef = React.useRef(new Set()); // remote participant IDs (for sendEndpointTextMessage)
-  const incomingFilesRef = React.useRef(new Map()); // id -> { meta, chunks[], receivedCount }
+  // Jitsi endpoint-data messaging readiness
+  const [dataReady, setDataReady] = React.useState(false);
+  const [dataBlocked, setDataBlocked] = React.useState(false);
 
+  // Track participant IDs (targeted sends)
+  const participantsRef = React.useRef(new Set());
+
+  // File assembly buffers
+  const incomingFilesRef = React.useRef(new Map());
+
+  // UI state
   const [fatalError, setFatalError] = React.useState(null);
+  const [statusChip, setStatusChip] = React.useState("Switching to relay…");
 
   const [isAudioEnabled, setIsAudioEnabled] = React.useState(true);
   const [isVideoEnabled, setIsVideoEnabled] = React.useState(true);
@@ -106,16 +170,13 @@ function JitsiCall({
   const [showFileTransfer, setShowFileTransfer] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
   const [showReactions, setShowReactions] = React.useState(false);
-
   const [reactions, setReactions] = React.useState([]);
 
-  const [dataChannelReady, setDataChannelReady] = React.useState(false);
-
-  // Mask sizes (tweak if you still see Jitsi UI)
+  // Mask sizes (tune if you still see Jitsi chrome)
   const MASK_TOP_PX = 64;
   const MASK_BOTTOM_PX = 96;
 
-  // Load external_api.js if not present [3](https://github.com/jitsi/jitsi-meet/issues/2027)
+  // Script loader for external_api.js [3](https://github.com/jitsi/jitsi-meet/issues/2027)
   const ensureJitsiScript = React.useCallback((domain) => {
     return new Promise((resolve, reject) => {
       if (window.JitsiMeetExternalAPI) return resolve();
@@ -139,7 +200,7 @@ function JitsiCall({
     });
   }, []);
 
-  // Disable click interaction inside iframe (so it feels like your GUI)
+  // Disable clicks inside iframe so it feels like your GUI
   const lockDownIframeInteraction = React.useCallback(() => {
     try {
       const root = jitsiContainerRef.current;
@@ -153,17 +214,13 @@ function JitsiCall({
     } catch (_) {}
   }, []);
 
-  // Start local preview always
+  // Local preview always
   React.useEffect(() => {
     let stopped = false;
-
     (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        if (stopped) {
-          stream.getTracks().forEach(t => t.stop());
-          return;
-        }
+        if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
         localStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
@@ -173,7 +230,6 @@ function JitsiCall({
         console.warn("[LocalPreview] getUserMedia failed:", e);
       }
     })();
-
     return () => {
       stopped = true;
       if (localStreamRef.current) {
@@ -183,89 +239,43 @@ function JitsiCall({
     };
   }, []);
 
-  // Keep preview video track enabled state in sync with your toggle
   React.useEffect(() => {
     const stream = localStreamRef.current;
     if (!stream) return;
     stream.getVideoTracks().forEach(t => { t.enabled = isVideoEnabled; });
   }, [isVideoEnabled]);
 
-  // Unified event subscription (supports both addListener and addEventListener)
-  const onApiEvent = React.useCallback((api, name, handler) => {
-    if (!api) return () => {};
-    try {
-      if (typeof api.addListener === "function") {
-        api.addListener(name, handler); // EventEmitter pattern [2](https://github.com/jitsi/jitsi-meet/issues/4671)
-        return () => { try { api.removeListener?.(name, handler); } catch (_) {} };
-      }
-      if (typeof api.addEventListener === "function") {
-        api.addEventListener(name, handler);
-        return () => { try { api.removeEventListener?.(name, handler); } catch (_) {} };
-      }
-    } catch (_) {}
-    return () => {};
+  // AddListener helper (EventEmitter) [1](https://github.com/jitsi/jitsi-meet/issues/4671)
+  const onApi = React.useCallback((api, evt, fn) => {
+    if (!api || typeof api.addListener !== "function") return () => {};
+    api.addListener(evt, fn);
+    return () => { try { api.removeListener?.(evt, fn); } catch (_) {} };
   }, []);
 
-  // Send app-level packet to all participants using endpoint messages
-  const sendPacketToAll = React.useCallback((packetObj) => {
-    const api = jitsiApiRef.current;
-    if (!api) return;
-
-    const text = JSON.stringify(packetObj);
-    const ids = Array.from(participantsRef.current);
-
-    // sendEndpointTextMessage requires channel support (may be disabled on some instances) 
-    ids.forEach(pid => {
-      try {
-        api.executeCommand("sendEndpointTextMessage", pid, text); // 
-      } catch (e) {
-        console.warn("[DataChannel] sendEndpointTextMessage failed:", e);
-      }
-    });
-
-    // local loopback
-    handleIncomingPacket({ senderId: "me", text });
-  }, []);
-
-  // Handle incoming app-level packets
-  const handleIncomingPacket = React.useCallback((raw) => {
-    const obj = safeJsonParse(raw.text);
+  // Handle incoming endpoint packets (datachannel) [1](https://github.com/jitsi/jitsi-meet/issues/4671)
+  const handlePacket = React.useCallback((senderId, text) => {
+    const obj = safeJsonParse(text);
     if (!obj || !obj.type) return;
 
     if (obj.type === "chat") {
       setMessages(prev => [...prev, {
         text: obj.text,
-        sender: obj.sender || raw.senderId || "peer",
+        sender: obj.sender || senderId || "peer",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       }]);
       return;
     }
 
     if (obj.type === "reaction") {
-      const newReaction = {
-        id: Date.now() + Math.random(),
-        emoji: obj.emoji,
-        x: obj.x ?? (Math.random() * 80 + 10)
-      };
-      setReactions(prev => [...prev, newReaction]);
-      setTimeout(() => setReactions(prev => prev.filter(r => r.id !== newReaction.id)), 3000);
+      const r = { id: Date.now() + Math.random(), emoji: obj.emoji, x: obj.x ?? (Math.random()*80+10) };
+      setReactions(prev => [...prev, r]);
+      setTimeout(() => setReactions(prev => prev.filter(x => x.id !== r.id)), 3000);
       return;
     }
 
     if (obj.type === "file-meta") {
-      incomingFilesRef.current.set(obj.id, {
-        meta: obj,
-        chunks: new Array(obj.totalChunks).fill(null),
-        receivedCount: 0
-      });
-
-      setFileTransfers(prev => [...prev, {
-        id: obj.id,
-        name: obj.name,
-        size: obj.size,
-        status: "receiving",
-        progress: 0
-      }]);
+      incomingFilesRef.current.set(obj.id, { meta: obj, chunks: new Array(obj.totalChunks).fill(null), receivedCount: 0 });
+      setFileTransfers(prev => [...prev, { id: obj.id, name: obj.name, size: obj.size, status: "receiving", progress: 0 }]);
       return;
     }
 
@@ -279,33 +289,78 @@ function JitsiCall({
       }
 
       const progress = Math.floor((entry.receivedCount / entry.meta.totalChunks) * 100);
-
-      setFileTransfers(prev => prev.map(t =>
-        t.id === obj.id ? { ...t, progress, status: progress >= 100 ? "assembling" : "receiving" } : t
-      ));
+      setFileTransfers(prev => prev.map(t => t.id === obj.id ? { ...t, progress, status: progress >= 100 ? "assembling" : "receiving" } : t));
 
       if (entry.receivedCount === entry.meta.totalChunks) {
         const b64 = entry.chunks.join("");
         const buffer = base64ToArrayBuffer(b64);
         const blob = new Blob([buffer], { type: entry.meta.mime || "application/octet-stream" });
         const url = URL.createObjectURL(blob);
-
-        setFileTransfers(prev => prev.map(t =>
-          t.id === obj.id ? { ...t, status: "completed", progress: 100, url } : t
-        ));
+        setFileTransfers(prev => prev.map(t => t.id === obj.id ? { ...t, status: "completed", progress: 100, url } : t));
       }
     }
   }, [setMessages, setFileTransfers]);
 
+  // Send endpoint packets to all known participants
+  const sendToAll = React.useCallback((packet) => {
+    const api = jitsiApiRef.current;
+    if (!api) return;
+
+    const text = JSON.stringify(packet);
+    const ids = Array.from(participantsRef.current);
+
+    // If no participants, still do local loopback
+    if (!ids.length) {
+      handlePacket("me", text);
+      return;
+    }
+
+    ids.forEach(id => {
+      try {
+        api.executeCommand("sendEndpointTextMessage", id, text);
+      } catch (e) {
+        // Datachannel blocked on this server
+        setDataBlocked(true);
+        setDataReady(false);
+      }
+    });
+
+    // local loopback so sender sees immediately
+    handlePacket("me", text);
+  }, [handlePacket]);
+
+  // Auto-recreate (reduces long-lived broken state)
+  const recreateRef = React.useRef({ tries: 0 });
+  const recreate = React.useCallback((reason) => {
+    const now = Date.now();
+    // prevent loops: max 2 recreates per minute
+    if (!recreateRef.current.last || now - recreateRef.current.last > 60000) {
+      recreateRef.current = { tries: 0, last: now };
+    }
+    if (recreateRef.current.tries >= 2) return;
+
+    recreateRef.current.tries += 1;
+    setStatusChip(`Recovering… (${reason})`);
+
+    try { jitsiApiRef.current?.dispose?.(); } catch (_) {}
+    jitsiApiRef.current = null;
+    // Re-run init by toggling a local state would be ideal, but we can just call init by forcing effect:
+    // easiest: trigger a synchronous remount by clearing container:
+    try { if (jitsiContainerRef.current) jitsiContainerRef.current.innerHTML = ""; } catch (_) {}
+    // The effect below will re-init because jitsiApiRef.current is null and container exists.
+  }, []);
+
   // Init Jitsi
   React.useEffect(() => {
     let cancelled = false;
-    let unsubscribers = [];
+    let cleanupFns = [];
 
     (async () => {
       try {
         setFatalError(null);
-        setDataChannelReady(false);
+        setStatusChip("Switching to relay…");
+        setDataReady(false);
+        setDataBlocked(false);
         participantsRef.current = new Set();
         incomingFilesRef.current = new Map();
 
@@ -320,24 +375,19 @@ function JitsiCall({
           width: "100%",
           height: "100%",
           parentNode: jitsiContainerRef.current,
-
-          onload: () => {
-            if (cancelled) return;
-            lockDownIframeInteraction();
-          },
-
+          onload: () => { if (!cancelled) lockDownIframeInteraction(); },
           userInfo: { displayName: String(peerId || "Peer") },
 
           configOverwrite: {
-            // Auto-join (new key) + keep old flag for compatibility [1](https://github.com/jitsi/jitsi-meet-react-sdk)
+            // Auto-join reliably [2](https://github.com/jitsi/jitsi-meet-react-sdk)
             prejoinConfig: { enabled: false },
             prejoinPageEnabled: false,
 
-            // Help endpoint messaging on some deployments (otherwise "Channel support is disabled") 
-            openBridgeChannel: "datachannel",
-
-            // Hide toolbar buttons as much as possible
+            // Hide toolbar buttons
             toolbarButtons: [],
+
+            // IMPORTANT: We do NOT force openBridgeChannel here, because it often triggers instability on public instances.
+            // If the server supports endpoint datachannel, it will fire dataChannelOpened. [1](https://github.com/jitsi/jitsi-meet/issues/4671)
 
             disableDeepLinking: true,
             startWithAudioMuted: false,
@@ -353,57 +403,66 @@ function JitsiCall({
           }
         };
 
-        const api = new window.JitsiMeetExternalAPI(DOMAIN, options);
+        const api = new window.JitsiMeetExternalAPI(DOMAIN, options); // [3](https://github.com/jitsi/jitsi-meet/issues/2027)
         jitsiApiRef.current = api;
 
-        // Keep iframe locked even if it re-renders
-        const relock = () => {
-          if (cancelled) return;
-          setTimeout(lockDownIframeInteraction, 50);
-          setTimeout(lockDownIframeInteraction, 500);
-        };
+        const relock = () => { setTimeout(lockDownIframeInteraction, 50); setTimeout(lockDownIframeInteraction, 500); };
 
-        // Events (use addListener per docs) [2](https://github.com/jitsi/jitsi-meet/issues/4671)
-        unsubscribers.push(onApiEvent(api, "videoConferenceJoined", () => {
+        cleanupFns.push(onApi(api, "videoConferenceJoined", () => {
           relock();
+          setStatusChip("Connected");
           if (peerId) api.executeCommand("displayName", String(peerId));
         }));
 
-        unsubscribers.push(onApiEvent(api, "readyToClose", () => onHangupRef.current?.()));
-        unsubscribers.push(onApiEvent(api, "audioMuteStatusChanged", (e) => setIsAudioEnabled(!e.muted)));
-        unsubscribers.push(onApiEvent(api, "videoMuteStatusChanged", (e) => setIsVideoEnabled(!e.muted)));
-
-        // Participants list (needed to target endpoint messages)
-        unsubscribers.push(onApiEvent(api, "participantJoined", (e) => { if (e?.id) participantsRef.current.add(e.id); }));
-        unsubscribers.push(onApiEvent(api, "participantLeft", (e) => { if (e?.id) participantsRef.current.delete(e.id); }));
-
-        // Data channel events [2](https://github.com/jitsi/jitsi-meet/issues/4671)
-        unsubscribers.push(onApiEvent(api, "dataChannelOpened", () => setDataChannelReady(true)));
-
-        unsubscribers.push(onApiEvent(api, "endpointTextMessageReceived", (payload) => {
-          // payload shape per docs: { senderInfo:{id}, eventData:{text} } [2](https://github.com/jitsi/jitsi-meet/issues/4671)
-          const text = payload?.eventData?.text;
-          const senderId = payload?.senderInfo?.id || "peer";
-          if (typeof text === "string") handleIncomingPacket({ senderId, text });
+        cleanupFns.push(onApi(api, "readyToClose", () => {
+          // Sometimes this fires on internal crash too. Recreate once, otherwise hang up.
+          recreate("readyToClose");
+          setTimeout(() => onHangupRef.current?.(), 250);
         }));
+
+        cleanupFns.push(onApi(api, "audioMuteStatusChanged", (e) => setIsAudioEnabled(!e.muted)));
+        cleanupFns.push(onApi(api, "videoMuteStatusChanged", (e) => setIsVideoEnabled(!e.muted)));
+
+        cleanupFns.push(onApi(api, "participantJoined", (e) => { if (e?.id) participantsRef.current.add(e.id); }));
+        cleanupFns.push(onApi(api, "participantLeft", (e) => { if (e?.id) participantsRef.current.delete(e.id); }));
+
+        // Data channel events + endpoint messages [1](https://github.com/jitsi/jitsi-meet/issues/4671)
+        cleanupFns.push(onApi(api, "dataChannelOpened", () => {
+          setDataReady(true);
+          setDataBlocked(false);
+        }));
+
+        cleanupFns.push(onApi(api, "endpointTextMessageReceived", (payload) => {
+          const text = payload?.eventData?.text;
+          const sender = payload?.senderInfo?.id || "peer";
+          if (typeof text === "string") handlePacket(sender, text);
+        }));
+
+        // Watchdog: if we never connect, recreate once
+        setTimeout(() => {
+          if (!cancelled && jitsiApiRef.current === api && statusChip !== "Connected") {
+            recreate("timeout");
+          }
+        }, 12000);
 
       } catch (err) {
         console.error("[JitsiCall] init error:", err);
         setFatalError(err?.message || String(err));
+        setStatusChip("Failed");
       }
     })();
 
     return () => {
       cancelled = true;
-      try { unsubscribers.forEach(fn => fn && fn()); } catch (_) {}
+      try { cleanupFns.forEach(fn => fn && fn()); } catch (_) {}
       if (jitsiApiRef.current) {
         try { jitsiApiRef.current.dispose(); } catch (_) {}
         jitsiApiRef.current = null;
       }
     };
-  }, [roomName, peerId, ensureJitsiScript, lockDownIframeInteraction, onApiEvent, handleIncomingPacket]);
+  }, [roomName, peerId, ensureJitsiScript, lockDownIframeInteraction, onApi, handlePacket, recreate, statusChip]);
 
-  // Controls (your GUI drives)
+  // Controls
   const toggleAudio = () => jitsiApiRef.current?.executeCommand("toggleAudio");
   const toggleVideo = () => jitsiApiRef.current?.executeCommand("toggleVideo");
   const toggleScreenShare = () => {
@@ -415,68 +474,58 @@ function JitsiCall({
     onHangupRef.current?.();
   };
 
-  // Chat send (your UI + datachannel)
+  // Chat / reaction / file send
   const sendMessage = (text) => {
+    // Always update UI locally
     setMessages(prev => [...prev, {
       text,
       sender: "me",
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     }]);
 
-    if (dataChannelReady) {
-      sendPacketToAll({ type: "chat", sender: peerId || "me", text });
+    if (dataReady && !dataBlocked) {
+      sendToAll({ type: "chat", sender: peerId || "me", text });
     }
   };
 
-  // Emoji send (your overlay + datachannel)
   const sendReaction = (emoji) => {
+    // local
     const x = Math.random() * 80 + 10;
-    const local = { id: Date.now() + Math.random(), emoji, x };
-    setReactions(prev => [...prev, local]);
-    setTimeout(() => setReactions(prev => prev.filter(r => r.id !== local.id)), 3000);
+    const r = { id: Date.now() + Math.random(), emoji, x };
+    setReactions(prev => [...prev, r]);
+    setTimeout(() => setReactions(prev => prev.filter(t => t.id !== r.id)), 3000);
 
-    if (dataChannelReady) {
-      sendPacketToAll({ type: "reaction", emoji, x });
+    if (dataReady && !dataBlocked) {
+      sendToAll({ type: "reaction", emoji, x });
     }
   };
 
-  // File transfer (best-effort over datachannel)
   const sendFile = async (file) => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-    setFileTransfers(prev => [...prev, {
-      id,
-      name: file.name,
-      size: file.size,
-      status: dataChannelReady ? "sending" : "failed",
-      progress: 0
-    }]);
+    // limit to keep messages safe on hosted servers
+    const MAX_BYTES = 700 * 1024; // 700KB safety
+    if (file.size > MAX_BYTES) {
+      setFileTransfers(prev => [...prev, { id, name: file.name, size: file.size, status: "failed", progress: 0, error: "File too large for relay mode" }]);
+      return;
+    }
 
-    if (!dataChannelReady) return;
+    setFileTransfers(prev => [...prev, { id, name: file.name, size: file.size, status: (dataReady && !dataBlocked) ? "sending" : "failed", progress: 0 }]);
+    if (!dataReady || dataBlocked) return;
 
     const buffer = await file.arrayBuffer();
     const b64 = arrayBufferToBase64(buffer);
 
-    const CHUNK_SIZE = 12000; // chars
-    const totalChunks = Math.ceil(b64.length / CHUNK_SIZE);
+    const CHUNK = 12000; // chars
+    const totalChunks = Math.ceil(b64.length / CHUNK);
 
-    // meta first
-    sendPacketToAll({
-      type: "file-meta",
-      id,
-      name: file.name,
-      size: file.size,
-      mime: file.type || "application/octet-stream",
-      totalChunks
-    });
+    sendToAll({ type: "file-meta", id, name: file.name, size: file.size, mime: file.type || "application/octet-stream", totalChunks });
 
     for (let i = 0; i < totalChunks; i++) {
-      const slice = b64.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-      sendPacketToAll({ type: "file-chunk", id, index: i, data: slice });
-
+      const slice = b64.slice(i * CHUNK, (i + 1) * CHUNK);
+      sendToAll({ type: "file-chunk", id, index: i, data: slice });
       const progress = Math.floor(((i + 1) / totalChunks) * 100);
       setFileTransfers(prev => prev.map(t => t.id === id ? { ...t, progress } : t));
-
       await new Promise(r => setTimeout(r, 0));
     }
 
@@ -484,33 +533,49 @@ function JitsiCall({
   };
 
   return (
-    <div className="relative h-screen bg-black" data-name="jitsi-call" data-file="jitsi.js">
+    <div className="relative h-screen" style={{ background: "var(--kde-bg)" }} data-name="jitsi-call" data-file="jitsi.js">
       {/* Jitsi iframe mount */}
       <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full" />
 
-      {/* Mask any remaining Jitsi chrome */}
-      <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none"
-           style={{ height: MASK_TOP_PX, background: "black" }} />
-      <div className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none"
-           style={{ height: MASK_BOTTOM_PX, background: "black" }} />
+      {/* Mask remaining Jitsi chrome */}
+      <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none" style={{ height: MASK_TOP_PX, background: "var(--kde-bg)" }} />
+      <div className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none" style={{ height: MASK_BOTTOM_PX, background: "var(--kde-bg)" }} />
 
-      {/* Error overlay */}
+      {/* Status chip */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 kde-chip rounded-full px-4 py-2 text-sm">
+        {statusChip}
+        <span className="ml-3 kde-label">
+          Data: {dataBlocked ? "BLOCKED" : (dataReady ? "READY" : "N/A")}
+        </span>
+      </div>
+
+      {/* Fatal overlay (your own, not Jitsi’s) */}
       {fatalError && (
-        <div className="absolute inset-0 flex items-center justify-center glass-effect z-50">
-          <div className="text-center p-6 bg-zinc-900/90 rounded-2xl border border-white/10 shadow-2xl max-w-md">
-            <div className="text-red-400 font-semibold mb-3">Jitsi failed</div>
-            <div className="text-sm text-gray-300 break-words">{fatalError}</div>
-            <button onClick={() => window.location.reload()}
-                    className="mt-5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white">
+        <div className="absolute inset-0 flex items-center justify-center z-50">
+          <div className="kde-glass rounded-2xl p-6 max-w-md text-center">
+            <div className="text-[var(--kde-danger)] font-semibold mb-2">Relay failed</div>
+            <div className="text-sm" style={{ color: "var(--kde-muted)" }}>{fatalError}</div>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-5 px-5 py-2 rounded-lg kde-btn"
+            >
               Reload
             </button>
           </div>
         </div>
       )}
 
-      {/* Your own local camera preview tile */}
-      <div className="absolute right-4 top-4 z-40 rounded-xl overflow-hidden border border-white/10 shadow-xl"
-           style={{ width: 220, height: 140, background: "#111" }}>
+      {/* Your local camera preview tile */}
+      <div
+        className="absolute right-4 top-4 z-40 rounded-lg overflow-hidden"
+        style={{
+          width: 240,
+          height: 150,
+          background: "#111",
+          border: "1px solid var(--kde-border)",
+          boxShadow: "0 8px 24px rgba(0,0,0,.7)"
+        }}
+      >
         <video
           ref={localVideoRef}
           autoPlay
@@ -519,14 +584,14 @@ function JitsiCall({
           className="w-full h-full object-cover"
           style={{ transform: "scaleX(-1)" }}
         />
-        <div className="absolute bottom-1 left-2 text-[10px] text-white/70 font-mono">
+        <div className="absolute bottom-1 left-2 text-[10px] kde-label">
           {peerId || "me"}
         </div>
       </div>
 
       {/* Panels */}
       {showChat && (
-        <div className="absolute top-0 right-0 w-80 h-full z-50">
+        <div className="absolute top-0 right-0 w-80 h-full z-50 kde-glass">
           <ChatPanel
             messages={messages}
             onSendMessage={sendMessage}
@@ -536,7 +601,7 @@ function JitsiCall({
       )}
 
       {showFileTransfer && (
-        <div className="absolute top-0 right-0 w-80 h-full z-50">
+        <div className="absolute top-0 right-0 w-80 h-full z-50 kde-glass">
           <FileTransferPanel
             fileTransfers={fileTransfers}
             onSendFile={sendFile}
@@ -550,8 +615,8 @@ function JitsiCall({
       <ReactionOverlay reactions={reactions} />
 
       {showReactions && (
-        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 glass-effect rounded-lg p-2 flex gap-2 z-50">
-          {["👍", "❤️", "😂", "👏", "🎉"].map((emoji) => (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 kde-glass rounded-lg p-2 flex gap-2">
+          {["👍", "❤️", "😂", "👏", "🎉"].map(emoji => (
             <button
               key={emoji}
               onClick={() => { sendReaction(emoji); setShowReactions(false); }}
@@ -563,80 +628,51 @@ function JitsiCall({
         </div>
       )}
 
-      {/* Your controls */}
+      {/* Controls bar (KDE Plasma Dark style) */}
       <div className="absolute bottom-0 left-0 right-0 p-6 z-40">
-        <div className="glass-effect rounded-lg px-6 py-4 max-w-2xl mx-auto flex items-center justify-center gap-3">
-          <button
-            onClick={toggleAudio}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-              isAudioEnabled ? "bg-[var(--dark-surface)] hover:bg-opacity-80" : "bg-red-600 hover:bg-red-700"
-            }`}
-          >
+        <div className="kde-glass rounded-lg px-6 py-4 max-w-2xl mx-auto flex items-center justify-center gap-3">
+          <button onClick={toggleAudio}
+            className={`kde-btn w-12 h-12 rounded-full flex items-center justify-center ${isAudioEnabled ? "" : "kde-btn-danger"}`}>
             <div className={`${isAudioEnabled ? "icon-mic" : "icon-mic-off"} text-xl`} />
           </button>
 
-          <button
-            onClick={toggleVideo}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-              isVideoEnabled ? "bg-[var(--dark-surface)] hover:bg-opacity-80" : "bg-red-600 hover:bg-red-700"
-            }`}
-          >
+          <button onClick={toggleVideo}
+            className={`kde-btn w-12 h-12 rounded-full flex items-center justify-center ${isVideoEnabled ? "" : "kde-btn-danger"}`}>
             <div className={`${isVideoEnabled ? "icon-video" : "icon-video-off"} text-xl`} />
           </button>
 
-          <button
-            onClick={toggleScreenShare}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-              isScreenSharing ? "bg-[var(--primary-color)]" : "bg-[var(--dark-surface)] hover:bg-opacity-80"
-            }`}
-          >
+          <button onClick={toggleScreenShare}
+            className="kde-btn w-12 h-12 rounded-full flex items-center justify-center">
             <div className="icon-monitor text-xl" />
           </button>
 
-          <button
-            onClick={() => setShowReactions((prev) => !prev)}
-            className="w-12 h-12 rounded-full bg-[var(--dark-surface)] hover:bg-opacity-80 flex items-center justify-center transition-all"
-          >
+          <button onClick={() => setShowReactions(prev => !prev)}
+            className="kde-btn w-12 h-12 rounded-full flex items-center justify-center">
             <div className="icon-smile text-xl" />
           </button>
 
-          <button
-            onClick={() => setShowChat((prev) => !prev)}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-              showChat ? "bg-[var(--primary-color)]" : "bg-[var(--dark-surface)] hover:bg-opacity-80"
-            }`}
-          >
+          <button onClick={() => setShowChat(prev => !prev)}
+            className={`kde-btn w-12 h-12 rounded-full flex items-center justify-center ${showChat ? "" : ""}`}>
             <div className="icon-message-square text-xl" />
           </button>
 
-          <button
-            onClick={() => setShowFileTransfer((prev) => !prev)}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-              showFileTransfer ? "bg-[var(--primary-color)]" : "bg-[var(--dark-surface)] hover:bg-opacity-80"
-            }`}
-          >
+          <button onClick={() => setShowFileTransfer(prev => !prev)}
+            className="kde-btn w-12 h-12 rounded-full flex items-center justify-center">
             <div className="icon-file-up text-xl" />
           </button>
 
-          <button
-            onClick={() => setShowSettings(true)}
-            className="w-12 h-12 rounded-full bg-[var(--dark-surface)] hover:bg-opacity-80 flex items-center justify-center transition-all"
-          >
+          <button onClick={() => setShowSettings(true)}
+            className="kde-btn w-12 h-12 rounded-full flex items-center justify-center">
             <div className="icon-settings text-xl" />
           </button>
 
-          <button
-            onClick={handleHangup}
-            className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-all"
-          >
+          <button onClick={handleHangup}
+            className="kde-btn kde-btn-danger w-12 h-12 rounded-full flex items-center justify-center">
             <div className="icon-phone-off text-xl" />
           </button>
-        </div>
-
-        <div className="mt-2 text-center text-[10px] text-white/40 font-mono">
-          Data channel: {dataChannelReady ? "READY" : "NOT READY"}
         </div>
       </div>
     </div>
   );
 }
+``
