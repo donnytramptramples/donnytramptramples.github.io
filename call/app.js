@@ -95,9 +95,6 @@ function App() {
             onJitsiFallback={(roomName) => {
               setUseJitsiFallback(true);
               setJitsiRoomName(roomName);
-              if (currentCall) {
-                currentCall.call.close();
-              }
             }}
           />
         )}
