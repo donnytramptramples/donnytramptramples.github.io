@@ -1,27 +1,56 @@
 /* global React */
 
-// ------------------------------
-// Global: Jitsi fallback event API
-// ------------------------------
-// Call this from PeerJS / VideoCall when P2P fails.
-// Your app.js should listen and switch UI to <JitsiCall .../>
-window.requestJitsiFallback = function requestJitsiFallback(detail) {
-  // detail: { roomName, peerId, remotePeerId, reason }
-  window.dispatchEvent(new CustomEvent('copilot:jitsi-fallback', { detail }));
-};
+/**
+ * jitsi.js
+ * - Fast UI switch (no big "Connecting..." screen)
+ * - Auto-join (skip prejoin/join button)
+ * - Hide all Jitsi UI buttons
+ * - Auto displayName = peerId
+ * - Global fallback trigger to switch from P2P->Jitsi immediately
+ */
 
-// Stable room name helper (same room for both sides)
+/* -----------------------------
+   Global helpers (fallback API)
+------------------------------ */
+
+// Stable shared room name: both ends compute the same string
 window.makeJitsiRoomName = function makeJitsiRoomName(peerId, remotePeerId) {
   const a = String(peerId || '').trim();
   const b = String(remotePeerId || '').trim();
-  // Sort so both ends compute same room
   const [p1, p2] = [a, b].sort();
   return `p2p-${p1}-${p2}`.replace(/[^a-zA-Z0-9-_]/g, '');
 };
 
-// ------------------------------
-// JitsiCall Component
-// ------------------------------
+// Call this from PeerJS error / WebRTC fail to switch immediately
+window.triggerJitsiFallback = function triggerJitsiFallback(payload) {
+  // payload: { reason, peerId, remotePeerId, roomName }
+  window.dispatchEvent(new CustomEvent('copilot:jitsi-fallback', { detail: payload || {} }));
+};
+
+// OPTIONAL: one-liner to preload Jitsi endpoints early (reduces “first switch” delay)
+window.prewarmJitsi = function prewarmJitsi(domain = 'meet.ffmuc.net') {
+  try {
+    const head = document.head || document.getElementsByTagName('head')[0];
+
+    const addLink = (rel, href, as) => {
+      if (document.querySelector(`link[rel="${rel}"][href="${href}"]`)) return;
+      const l = document.createElement('link');
+      l.rel = rel;
+      l.href = href;
+      if (as) l.as = as;
+      head.appendChild(l);
+    };
+
+    addLink('preconnect', `https://${domain}`);
+    addLink('dns-prefetch', `https://${domain}`);
+    addLink('preload', `https://${domain}/external_api.js`, 'script');
+  } catch (_) {}
+};
+
+/* -----------------------------
+   JitsiCall Component
+------------------------------ */
+
 function JitsiCall({
   roomName,
   peerId,
@@ -35,7 +64,7 @@ function JitsiCall({
   const jitsiContainerRef = React.useRef(null);
   const jitsiApiRef = React.useRef(null);
 
-  // Keep latest onHangup without reinitializing Jitsi (prevents resets)
+  // keep onHangup stable without re-init
   const onHangupRef = React.useRef(onHangup);
   React.useEffect(() => { onHangupRef.current = onHangup; }, [onHangup]);
 
@@ -50,16 +79,17 @@ function JitsiCall({
 
   const [reactions, setReactions] = React.useState([]);
 
-  // Loader state: hide when iframe loads (Jitsi is there)
+  // “Fast transition”: we don’t block the screen; just show a tiny pill briefly
   const [isIframeLoaded, setIsIframeLoaded] = React.useState(false);
-  const [isConferenceJoined, setIsConferenceJoined] = React.useState(false);
+  const [showSwitchPill, setShowSwitchPill] = React.useState(true);
   const [fatalError, setFatalError] = React.useState(null);
 
-  // Dynamic loader for the correct Jitsi iFrame API script
+  // Load external_api.js (correct iFrame API script path)
   const ensureJitsiScript = React.useCallback((domain) => {
     return new Promise((resolve, reject) => {
       if (window.JitsiMeetExternalAPI) return resolve();
 
+      // if we already injected it, wait
       const existing = document.querySelector('script[data-jitsi-api="1"]');
       if (existing) {
         existing.addEventListener('load', resolve, { once: true });
@@ -67,8 +97,11 @@ function JitsiCall({
         return;
       }
 
+      // Prewarm connections (speed feel)
+      window.prewarmJitsi?.(domain);
+
       const s = document.createElement('script');
-      s.src = `https://${domain}/external_api.js`; // documented include path [6](https://github.com/jitsi/ljm-getting-started)[7](https://stackoverflow.com/questions/76793059/how-i-can-add-custom-ui-for-lib-jitsi-meet-dist)
+      s.src = `https://${domain}/external_api.js`; // documented include [4](https://github.com/jitsi/ljm-getting-started)[5](https://stackoverflow.com/questions/76793059/how-i-can-add-custom-ui-for-lib-jitsi-meet-dist)
       s.async = true;
       s.dataset.jitsiApi = "1";
       s.onload = resolve;
@@ -83,10 +116,13 @@ function JitsiCall({
     async function init() {
       setFatalError(null);
       setIsIframeLoaded(false);
-      setIsConferenceJoined(false);
+
+      // tiny pill only, and auto-hide it quickly
+      setShowSwitchPill(true);
+      setTimeout(() => { if (!cancelled) setShowSwitchPill(false); }, 800);
 
       if (!jitsiContainerRef.current) return;
-      if (jitsiApiRef.current) return; // prevent double init
+      if (jitsiApiRef.current) return;
 
       const domain = 'meet.ffmuc.net';
       const displayName = String(peerId || 'Peer');
@@ -101,21 +137,22 @@ function JitsiCall({
           height: '100%',
           parentNode: jitsiContainerRef.current,
 
-          // Hide loader when iframe is present
+          // “Jitsi is there” when iframe loads
           onload: () => {
             if (cancelled) return;
             setIsIframeLoaded(true);
+            setShowSwitchPill(false);
           },
 
-          // Auto-fill name; avoid any name prompt
+          // auto name
           userInfo: { displayName },
 
           configOverwrite: {
-            // ✅ Auto-join (skip "Join meeting" prejoin screen)
-            prejoinPageEnabled: false, // [1](https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-ljm/)[2](https://jitsi.support/developer/getting-started-lib-jitsi-meet/)
+            // ✅ Auto-join: skip the prejoin "Join meeting" screen [1](https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-ljm/)[2](https://jitsi.support/developer/getting-started-lib-jitsi-meet/)
+            prejoinPageEnabled: false,
 
-            // ✅ Hide ALL Jitsi UI buttons
-            toolbarButtons: [], // [3](https://stackoverflow.com/questions/67400253/auto-join-jitsi-meet)
+            // ✅ Hide ALL UI buttons (empty array hides all) [3](https://stackoverflow.com/questions/67400253/auto-join-jitsi-meet)
+            toolbarButtons: [],
 
             disableDeepLinking: true,
             startWithAudioMuted: false,
@@ -123,7 +160,9 @@ function JitsiCall({
           },
 
           interfaceConfigOverwrite: {
-            // Keep branding/watermarks off
+            // extra hardening: also hide toolbar list if deployment reads interfaceConfig
+            TOOLBAR_BUTTONS: [],
+
             SHOW_JITSI_WATERMARK: false,
             SHOW_WATERMARK_FOR_GUESTS: false,
             SHOW_BRAND_WATERMARK: false,
@@ -131,17 +170,14 @@ function JitsiCall({
           }
         };
 
-        const api = new window.JitsiMeetExternalAPI(domain, options); // iFrame API constructor [6](https://github.com/jitsi/ljm-getting-started)[8](https://blog.csdn.net/gitblog_00395/article/details/155419436)
+        const api = new window.JitsiMeetExternalAPI(domain, options);
         jitsiApiRef.current = api;
-
-        const markLoaded = () => { if (!cancelled) setIsIframeLoaded(true); };
 
         api.addEventListener('videoConferenceJoined', () => {
           if (cancelled) return;
-          setIsConferenceJoined(true);
-          markLoaded();
+          setShowSwitchPill(false);
 
-          // Force set display name again (some deployments apply it late)
+          // force display name again (some instances apply userInfo late)
           if (peerId) api.executeCommand('displayName', String(peerId));
         });
 
@@ -152,18 +188,11 @@ function JitsiCall({
         api.addEventListener('audioMuteStatusChanged', (e) => {
           if (cancelled) return;
           setIsAudioEnabled(!e.muted);
-          markLoaded();
         });
 
         api.addEventListener('videoMuteStatusChanged', (e) => {
           if (cancelled) return;
           setIsVideoEnabled(!e.muted);
-          markLoaded();
-        });
-
-        // Optional: If the API emits errors, surface them
-        api.addEventListener('error', (e) => {
-          console.warn('[JitsiCall] API error:', e);
         });
 
       } catch (err) {
@@ -177,15 +206,15 @@ function JitsiCall({
     return () => {
       cancelled = true;
       if (jitsiApiRef.current) {
-        try { jitsiApiRef.current.dispose(); } catch (e) {}
+        try { jitsiApiRef.current.dispose(); } catch (_) {}
         jitsiApiRef.current = null;
       }
     };
 
-    // ✅ DO NOT include onHangup/messages/fileTransfers here → prevents resets while typing
+    // IMPORTANT: Only re-init when roomName/peerId changes (prevents reset while typing)
   }, [roomName, peerId, ensureJitsiScript]);
 
-  // ---------- Controls ----------
+  // Controls
   const toggleAudio = () => jitsiApiRef.current?.executeCommand('toggleAudio');
   const toggleVideo = () => jitsiApiRef.current?.executeCommand('toggleVideo');
 
@@ -199,7 +228,7 @@ function JitsiCall({
     onHangupRef.current?.();
   };
 
-  // Use functional updates so typing doesn’t depend on stale props
+  // Chat (functional update = no stale snapshot)
   const sendMessage = (text) => {
     const newMessage = {
       text,
@@ -228,25 +257,16 @@ function JitsiCall({
     setFileTransfers(prev => [...prev, newTransfer]);
   };
 
-  // ---------- UI ----------
+  // UI
   return (
     <div className="relative h-screen bg-black" data-name="jitsi-call" data-file="jitsi.js">
-      {/* Hide iframe until loaded to avoid any UI flash */}
-      <div
-        ref={jitsiContainerRef}
-        className={`w-full h-full ${isIframeLoaded ? '' : 'opacity-0'}`}
-      />
+      {/* FAST: show iframe area immediately (don’t hide it while loading) */}
+      <div ref={jitsiContainerRef} className="w-full h-full" />
 
-      {/* Loader disappears when iframe exists */}
-      {!isIframeLoaded && !fatalError && (
-        <div className="absolute inset-0 flex items-center justify-center glass-effect z-50">
-          <div className="text-center p-6 bg-zinc-900/90 rounded-2xl border border-white/10 shadow-2xl">
-            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-5" />
-            <div className="text-lg font-medium">Loading call…</div>
-            <div className="mt-2 text-xs text-gray-400">
-              Auto-joining as <span className="font-mono">{peerId || 'Peer'}</span>
-            </div>
-          </div>
+      {/* Tiny pill instead of full-screen “Connecting…” */}
+      {showSwitchPill && !fatalError && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 glass-effect rounded-full px-4 py-2 z-50 text-sm">
+          Switching to relay…
         </div>
       )}
 
@@ -265,14 +285,7 @@ function JitsiCall({
         </div>
       )}
 
-      {/* Optional: small status while joining the conference */}
-      {isIframeLoaded && !isConferenceJoined && !fatalError && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 glass-effect rounded-lg px-4 py-2 z-40 text-sm">
-          Joining room…
-        </div>
-      )}
-
-      {/* Your side panels */}
+      {/* Your panels */}
       {showChat && (
         <div className="absolute top-0 right-0 w-80 h-full z-50">
           <ChatPanel
@@ -311,7 +324,7 @@ function JitsiCall({
         </div>
       )}
 
-      {/* Your custom controls (Jitsi toolbar is hidden by toolbarButtons: []) */}
+      {/* Your custom controls (Jitsi toolbar hidden by toolbarButtons: []) */}
       <div className="absolute bottom-0 left-0 right-0 p-6 z-40">
         <div className="glass-effect rounded-lg px-6 py-4 max-w-2xl mx-auto flex items-center justify-center gap-3">
           <button
@@ -319,7 +332,6 @@ function JitsiCall({
             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
               isAudioEnabled ? 'bg-[var(--dark-surface)] hover:bg-opacity-80' : 'bg-red-600 hover:bg-red-700'
             }`}
-            title="Mute/Unmute"
           >
             <div className={`${isAudioEnabled ? 'icon-mic' : 'icon-mic-off'} text-xl`} />
           </button>
@@ -329,7 +341,6 @@ function JitsiCall({
             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
               isVideoEnabled ? 'bg-[var(--dark-surface)] hover:bg-opacity-80' : 'bg-red-600 hover:bg-red-700'
             }`}
-            title="Camera On/Off"
           >
             <div className={`${isVideoEnabled ? 'icon-video' : 'icon-video-off'} text-xl`} />
           </button>
@@ -339,7 +350,6 @@ function JitsiCall({
             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
               isScreenSharing ? 'bg-[var(--primary-color)]' : 'bg-[var(--dark-surface)] hover:bg-opacity-80'
             }`}
-            title="Share Screen"
           >
             <div className="icon-monitor text-xl" />
           </button>
@@ -347,7 +357,6 @@ function JitsiCall({
           <button
             onClick={() => setShowReactions(prev => !prev)}
             className="w-12 h-12 rounded-full bg-[var(--dark-surface)] hover:bg-opacity-80 flex items-center justify-center transition-all"
-            title="Reactions"
           >
             <div className="icon-smile text-xl" />
           </button>
@@ -357,7 +366,6 @@ function JitsiCall({
             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
               showChat ? 'bg-[var(--primary-color)]' : 'bg-[var(--dark-surface)] hover:bg-opacity-80'
             }`}
-            title="Chat"
           >
             <div className="icon-message-square text-xl" />
           </button>
@@ -367,7 +375,6 @@ function JitsiCall({
             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
               showFileTransfer ? 'bg-[var(--primary-color)]' : 'bg-[var(--dark-surface)] hover:bg-opacity-80'
             }`}
-            title="Files"
           >
             <div className="icon-file-up text-xl" />
           </button>
@@ -375,7 +382,6 @@ function JitsiCall({
           <button
             onClick={() => setShowSettings(true)}
             className="w-12 h-12 rounded-full bg-[var(--dark-surface)] hover:bg-opacity-80 flex items-center justify-center transition-all"
-            title="Settings"
           >
             <div className="icon-settings text-xl" />
           </button>
@@ -383,7 +389,6 @@ function JitsiCall({
           <button
             onClick={handleHangup}
             className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-all"
-            title="Hang up"
           >
             <div className="icon-phone-off text-xl" />
           </button>
@@ -392,3 +397,55 @@ function JitsiCall({
     </div>
   );
 }
+
+/* -----------------------------------------
+   OPTIONAL: Fast P2P failure -> Jitsi trigger
+   Call window.installFastP2PFallback(...) from VideoCall.js
+------------------------------------------ */
+
+window.installFastP2PFallback = function installFastP2PFallback({
+  peerId,
+  remotePeerId,
+  pc,            // RTCPeerConnection (optional)
+  peer,          // PeerJS Peer (optional)
+  graceMs = 900  // how fast to fallback after "disconnected"
+}) {
+  const roomName = window.makeJitsiRoomName(peerId, remotePeerId);
+
+  const fire = (reason) => {
+    window.triggerJitsiFallback({ reason, peerId, remotePeerId, roomName });
+  };
+
+  // PeerJS error -> immediate fallback (e.g. "Could not connect to peer ...")
+  // PeerJS supports peer.on('error', ...) [6](https://meet.google.com/)
+  if (peer && typeof peer.on === 'function') {
+    peer.on('error', () => fire('peer-error'));
+    peer.on('disconnected', () => fire('peer-disconnected'));
+  }
+
+  // ICE / connection state -> fast fallback
+  // "disconnected" may be transient; "failed" indicates ICE cannot find a match [2](https://jitsi.support/developer/getting-started-lib-jitsi-meet/)
+  if (pc && typeof pc.addEventListener === 'function') {
+    let t = null;
+
+    pc.addEventListener('iceconnectionstatechange', () => {
+      const s = pc.iceConnectionState;
+      if (s === 'failed') {
+        fire('ice-failed');
+      } else if (s === 'disconnected') {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          if (pc.iceConnectionState === 'disconnected') fire('ice-disconnected');
+        }, graceMs);
+      } else if (s === 'connected' || s === 'completed') {
+        clearTimeout(t);
+      }
+    });
+
+    pc.addEventListener('connectionstatechange', () => {
+      if (pc.connectionState === 'failed') fire('pc-failed');
+    });
+  }
+
+  return { roomName };
+};
