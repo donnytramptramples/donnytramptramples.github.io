@@ -6,32 +6,37 @@ function JitsiCall({ roomName, onHangup }) {
   const [retryCount, setRetryCount] = React.useState(0);
 
   React.useEffect(() => {
-    console.log(`[JitsiCall] Mounted with Room: ${roomName}`);
+    console.log(`[JitsiCall] Mount Effect Triggered. Room: ${roomName}`);
+    let isMounted = true;
+    let timer;
+
     if (!jitsiContainerRef.current) {
         console.error('[JitsiCall] Container ref is null');
         return;
     }
 
     const initializeJitsi = () => {
-      // Check if the script exists in the window object
+      if (!isMounted) return;
+
+      // 1. Script Check Logic
       if (!window.JitsiMeetExternalAPI) {
-        if (retryCount > 15) { // Stop after ~5 seconds
-            console.error('[JitsiCall] Global Jitsi API not found after 15 retries. Check index.html script tags.');
-            setError("Jitsi script failed to load. Check your internet/firewall.");
+        if (retryCount > 25) { 
+            console.error('[JitsiCall] SCRIPT MISSING: window.JitsiMeetExternalAPI is undefined after 25 tries.');
+            setError("Jitsi script blocked or failed to load. Check index.html source.");
             setLoading(false);
             return;
         }
-        console.log(`[JitsiCall] Jitsi API not ready (Attempt ${retryCount}). Waiting...`);
+        console.log(`[JitsiCall] Script not found. Attempt ${retryCount}/25. Waiting 400ms...`);
+        
+        // We update the state, but we don't let it restart the whole effect
         setRetryCount(prev => prev + 1);
-        setTimeout(initializeJitsi, 300);
+        timer = setTimeout(initializeJitsi, 400);
         return;
       }
 
-      console.log('[JitsiCall] API script detected. Initializing Jitsi instance...');
+      console.log('[JitsiCall] SUCCESS: API script detected. Starting Jitsi initialization...');
       
-      // Use the mirror domain
       const domain = 'meet.ffmuc.net'; 
-      
       const options = {
         roomName: "Relay_" + roomName,
         width: '100%',
@@ -55,39 +60,34 @@ function JitsiCall({ roomName, onHangup }) {
       };
 
       try {
-        console.log(`[JitsiCall] Connecting to Domain: ${domain}`);
+        console.log(`[JitsiCall] Instance creating on domain: ${domain}`);
         jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options);
 
-        // --- Log all major lifecycle events ---
-        
+        // --- Event Listeners ---
         jitsiApiRef.current.on('videoConferenceJoined', (participant) => {
-          console.log('[JitsiCall] EVENT: videoConferenceJoined', participant);
+          console.log('[JitsiCall] CONNECTED: videoConferenceJoined', participant);
           setLoading(false);
         });
 
-        jitsiApiRef.current.on('participantJoined', (participant) => {
-          console.log('[JitsiCall] EVENT: participantJoined', participant);
-        });
-
+        jitsiApiRef.current.on('participantJoined', (p) => console.log('[JitsiCall] Participant Joined:', p));
+        
         jitsiApiRef.current.on('readyToClose', () => {
-          console.log('[JitsiCall] EVENT: readyToClose (Hangup clicked)');
+          console.log('[JitsiCall] Hangup triggered');
           if (onHangup) onHangup();
         });
 
-        jitsiApiRef.current.on('error', (err) => {
-          console.error('[JitsiCall] API ERROR:', err);
-        });
+        jitsiApiRef.current.on('error', (err) => console.error('[JitsiCall] API Internal Error:', err));
 
-        // Timeout check: if after 10 seconds we still show loading, the domain is likely blocked
-        const connectionTimeout = setTimeout(() => {
-          if (loading && !jitsiApiRef.current?._setupDone) {
-             console.warn('[JitsiCall] Connection taking too long. Domain might be blocked.');
-             setError("Relay server is not responding. The network might be blocking this mirror.");
+        // Firewall Timeout
+        setTimeout(() => {
+          if (isMounted && loading && !jitsiApiRef.current?._setupDone) {
+             console.warn('[JitsiCall] CONNECTION TIMEOUT: Domain might be firewalled.');
+             setError("Mirror meet.ffmuc.net is not responding. Try refreshing.");
           }
-        }, 10000);
+        }, 12000);
 
       } catch (err) {
-        console.error('[JitsiCall] Initialization Exception:', err);
+        console.error('[JitsiCall] CRITICAL EXCEPTION:', err);
         setError("Failed to create Jitsi instance: " + err.message);
         setLoading(false);
       }
@@ -96,39 +96,43 @@ function JitsiCall({ roomName, onHangup }) {
     initializeJitsi();
 
     return () => {
-      console.log('[JitsiCall] Unmounting. Disposing Jitsi...');
+      console.log('[JitsiCall] CLEANUP: Unmounting and disposing...');
+      isMounted = false;
+      clearTimeout(timer);
       if (jitsiApiRef.current) {
         try {
           jitsiApiRef.current.dispose();
-          console.log('[JitsiCall] Disposed successfully');
+          console.log('[JitsiCall] Dispose successful');
         } catch (err) {
-          console.error('[JitsiCall] Dispose Error:', err);
+          console.error('[JitsiCall] Dispose error:', err);
         }
       }
     };
-  }, [roomName, onHangup, retryCount]);
+  }, [roomName, onHangup]); // REMOVED retryCount from here to stop the loop
 
   return (
-    <div className="relative h-screen bg-black w-full" data-name="jitsi-call">
+    <div className="fixed inset-0 w-full h-full bg-black z-[9999]" data-name="jitsi-call">
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center glass-effect z-50">
+        <div className="absolute inset-0 flex items-center justify-center glass-effect z-[10000]">
           <div className="text-center p-8 bg-zinc-900/90 rounded-3xl border border-white/10 shadow-2xl">
             {error ? (
                <div className="space-y-4">
                  <p className="text-red-400 font-semibold">{error}</p>
                  <button 
                     onClick={() => window.location.reload()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition shadow-lg"
                  >
-                    Try Refreshing
+                    Retry Connection
                  </button>
                </div>
             ) : (
               <>
-                <div className="w-14 h-14 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-                <h2 className="text-xl text-white font-bold mb-2">Bypassing Network Filters</h2>
+                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+                <h2 className="text-2xl text-white font-bold mb-2">Bypassing Network Filters</h2>
                 <p className="text-sm text-gray-400">Connecting to encrypted relay server...</p>
-                <div className="mt-4 text-[10px] text-gray-600 uppercase tracking-widest">Mirror: meet.ffmuc.net</div>
+                <div className="mt-4 text-[10px] text-gray-500 uppercase tracking-widest font-mono">
+                   Attempt: {retryCount} | Source: meet.ffmuc.net
+                </div>
               </>
             )}
           </div>
