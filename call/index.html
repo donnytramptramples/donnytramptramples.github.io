@@ -11,13 +11,15 @@
     <meta name="twitter:title" content="P2P Video Call">
     <meta name="twitter:description" content="Secure peer-to-peer video calling application">
 
+    <!-- 1. Jitsi API - LOAD THIS SYNC (No async) -->
+    <script src="https://meet.jit.si"></script>
+
     <script src="https://resource.trickle.so/vendor_lib/unpkg/react@18/umd/react.production.min.js"></script>
     <script src="https://resource.trickle.so/vendor_lib/unpkg/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://resource.trickle.so/vendor_lib/unpkg/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://resource.trickle.so/vendor_lib/unpkg/lucide-static@0.516.0/font/lucide.css" rel="stylesheet">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://8x8.vc/vpaas-magic-cookie-a1b2c3d4e5/external_api.js" async></script>
 
     <style type="text/tailwindcss">
     @layer theme {
@@ -63,6 +65,8 @@
 </head>
 <body>
     <div id="root"></div>
+    <!-- Load PeerManager FIRST so components can find its functions -->
+    <script type="text/babel" src="utils/peerManager.js"></script>
     <script type="text/babel" src="components/IdScreen.js"></script>
     <script type="text/babel" src="components/IncomingCall.js"></script>
     <script type="text/babel" src="components/VideoCall.js"></script>
@@ -72,7 +76,6 @@
     <script type="text/babel" src="components/SettingsPanel.js"></script>
     <script type="text/babel" src="components/ReactionOverlay.js"></script>
     <script type="text/babel" src="components/FileTransferPanel.js"></script>
-    <script type="text/babel" src="utils/peerManager.js"></script>
     <script type="text/babel" src="app.js"></script>
 </body>
 </html>
