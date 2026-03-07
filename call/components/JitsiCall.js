@@ -2,9 +2,12 @@ function JitsiCall({ roomName, onHangup }) {
   try {
     const jitsiContainerRef = React.useRef(null);
     const jitsiApiRef = React.useRef(null);
+    const [loading, setLoading] = React.useState(true);
 
     React.useEffect(() => {
       if (!jitsiContainerRef.current || !window.JitsiMeetExternalAPI) {
+        console.error('Jitsi API not available');
+        setLoading(false);
         return;
       }
 
@@ -35,6 +38,10 @@ function JitsiCall({ roomName, onHangup }) {
 
       jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options);
 
+      jitsiApiRef.current.addEventListener('videoConferenceJoined', () => {
+        setLoading(false);
+      });
+
       jitsiApiRef.current.addEventListener('readyToClose', () => {
         onHangup();
       });
@@ -48,6 +55,14 @@ function JitsiCall({ roomName, onHangup }) {
 
     return (
       <div className="relative h-screen bg-black" data-name="jitsi-call" data-file="components/JitsiCall.js">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center glass-effect">
+            <div className="text-center">
+              <div className="icon-loader animate-spin text-4xl text-[var(--primary-color)] mb-4"></div>
+              <p className="text-lg">Connecting to video call...</p>
+            </div>
+          </div>
+        )}
         <div ref={jitsiContainerRef} className="w-full h-full"></div>
       </div>
     );
