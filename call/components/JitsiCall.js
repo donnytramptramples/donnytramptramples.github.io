@@ -124,7 +124,7 @@ function JitsiCall({
       if (!jitsiContainerRef.current) return;
       if (jitsiApiRef.current) return;
 
-      const domain = 'meet.ffmuc.net';
+      const domain = 'jitsi.math.uzh.ch';
       const displayName = String(peerId || 'Peer');
 
       try {
