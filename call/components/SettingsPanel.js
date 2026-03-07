@@ -1,54 +1,118 @@
 function SettingsPanel({ onClose }) {
-  try {
-    const [devices, setDevices] = React.useState({ audio: [], video: [] });
+  const [devices, setDevices] = React.useState({ audio: [], video: [] });
+  const [selectedMic, setSelectedMic] = React.useState("");
+  const [selectedCam, setSelectedCam] = React.useState("");
 
-    React.useEffect(() => {
-      navigator.mediaDevices.enumerateDevices().then(deviceList => {
-        setDevices({
-          audio: deviceList.filter(d => d.kind === 'audioinput'),
-          video: deviceList.filter(d => d.kind === 'videoinput')
-        });
-      });
-    }, []);
+  // Load devices
+  React.useEffect(() => {
+    navigator.mediaDevices.enumerateDevices().then((list) => {
+      const audio = list.filter(d => d.kind === "audioinput");
+      const video = list.filter(d => d.kind === "videoinput");
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4" data-name="settings-panel" data-file="components/SettingsPanel.js">
-        <div className="glass-effect rounded-lg p-6 max-w-md w-full shadow-2xl border border-gray-700">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Settings</h2>
-            <button onClick={onClose} className="w-8 h-8 rounded flex items-center justify-center hover:bg-[var(--dark-surface)] transition-colors">
-              <div className="icon-x text-lg"></div>
-            </button>
-          </div>
+      setDevices({ audio, video });
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-[var(--text-secondary)] mb-2">Microphone</label>
-              <select className="w-full bg-[var(--dark-surface)] border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary-color)]">
-                {devices.audio.map(device => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label || 'Microphone'}
-                  </option>
-                ))}
-              </select>
-            </div>
+      if (audio[0]) setSelectedMic(audio[0].deviceId);
+      if (video[0]) setSelectedCam(video[0].deviceId);
+    });
+  }, []);
 
-            <div>
-              <label className="block text-sm text-[var(--text-secondary)] mb-2">Camera</label>
-              <select className="w-full bg-[var(--dark-surface)] border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-[var(--primary-color)]">
-                {devices.video.map(device => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label || 'Camera'}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+  // ✅ Switch microphone
+  const changeMic = async (deviceId) => {
+    setSelectedMic(deviceId);
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: { exact: deviceId } },
+      video: false
+    });
+
+    const newTrack = stream.getAudioTracks()[0];
+
+    // Replace in local stream
+    window.localStream.getAudioTracks().forEach(t => {
+      window.localStream.removeTrack(t);
+      t.stop();
+    });
+    window.localStream.addTrack(newTrack);
+
+    // Replace in peer connection
+    const sender = window.peerConnection
+      ?.getSenders()
+      .find(s => s.track?.kind === "audio");
+
+    sender?.replaceTrack(newTrack);
+  };
+
+  // ✅ Switch camera
+  const changeCamera = async (deviceId) => {
+    setSelectedCam(deviceId);
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: deviceId } },
+      audio: false
+    });
+
+    const newTrack = stream.getVideoTracks()[0];
+
+    // Replace in local stream
+    window.localStream.getVideoTracks().forEach(t => {
+      window.localStream.removeTrack(t);
+      t.stop();
+    });
+    window.localStream.addTrack(newTrack);
+
+    // Replace in peer connection
+    const sender = window.peerConnection
+      ?.getSenders()
+      .find(s => s.track?.kind === "video");
+
+    sender?.replaceTrack(newTrack);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <div className="glass-effect rounded-lg p-6 max-w-md w-full border border-gray-700">
+        
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Settings</h2>
+          <button onClick={onClose}>✕</button>
+        </div>
+
+        {/* MICROPHONE */}
+        <div className="mb-4">
+          <label className="block text-sm text-gray-400 mb-2">Microphone</label>
+          <select
+            value={selectedMic}
+            onChange={(e) => changeMic(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm"
+          >
+            {devices.audio.map(d => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {d.label || "Microphone"}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* CAMERA */}
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">Camera</label>
+          <select
+            value={selectedCam}
+            onChange={(e) => changeCamera(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm"
+          >
+            {devices.video.map(d => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {d.label || "Camera"}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
-    );
-  } catch (error) {
-    console.error('SettingsPanel component error:', error);
-    return null;
-  }
+    </div>
+  );
 }
+
+// ✅ expose globally
+window.SettingsPanel = SettingsPanel;
