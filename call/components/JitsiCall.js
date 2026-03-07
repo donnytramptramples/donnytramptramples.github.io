@@ -28,7 +28,7 @@ window.triggerJitsiFallback = function triggerJitsiFallback(payload) {
 };
 
 // OPTIONAL: one-liner to preload Jitsi endpoints early (reduces “first switch” delay)
-window.prewarmJitsi = function prewarmJitsi(domain = 'meet.ffmuc.net') {
+window.prewarmJitsi = function prewarmJitsi(domain = 'jitsi.math.uzh.ch') {
   try {
     const head = document.head || document.getElementsByTagName('head')[0];
 
