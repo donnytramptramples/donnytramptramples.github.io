@@ -308,6 +308,18 @@ function VideoCall({ call, peerId, remotePeerId, messages, setMessages, fileTran
           }
         } else if (data.type === 'jitsi-invite') {
           console.log('Received Jitsi invite:', data.roomName);
+          
+          // Close P2P connection and stop streams
+          if (screenStreamRef.current) {
+            screenStreamRef.current.getTracks().forEach(track => track.stop());
+          }
+          if (call.localStream) {
+            call.localStream.getTracks().forEach(track => track.stop());
+          }
+          if (call.call) {
+            call.call.close();
+          }
+          
           // Automatically switch to Jitsi when invited
           if (onJitsiFallback) {
             onJitsiFallback(data.roomName);
@@ -472,6 +484,17 @@ function VideoCall({ call, peerId, remotePeerId, messages, setMessages, fileTran
                     type: 'jitsi-invite',
                     roomName: roomName
                   }));
+                }
+                
+                // Close P2P connection and stop streams
+                if (screenStreamRef.current) {
+                  screenStreamRef.current.getTracks().forEach(track => track.stop());
+                }
+                if (call.localStream) {
+                  call.localStream.getTracks().forEach(track => track.stop());
+                }
+                if (call.call) {
+                  call.call.close();
                 }
                 
                 // Switch to Jitsi on this side
